@@ -398,7 +398,7 @@ input,textarea,select{font-family:inherit;}
   padding-top:10px;
   display:none;
 }
-.parselog.show{display:block;}
+.parselog.show{display:none;}
 .parselog div{padding:2px 0;}
 .parselog .ok{color:var(--status-ok-fg);}
 .parselog .warn{color:var(--status-warn-fg);}
@@ -458,6 +458,7 @@ tbody tr.st-done{opacity:0.55;}
 
 .dash{color:var(--text-muted);}
 .conthrs{font-weight:700;}
+.totalhrs{font-weight:700;color:var(--accent-strong);}
 
 .rowedit{
   border:1px solid var(--line);
@@ -628,6 +629,7 @@ tbody tr.st-done{opacity:0.55;}
           <th>Sortie Sugg.</th>
           <th>Sortie</th>
           <th>Heures Cont.</th>
+          <th>Heures Tot.</th>
           <th>Statut</th>
           <th class="printhide">Notes</th>
           <th class="printhide">Actions Rapides</th>
@@ -806,7 +808,7 @@ function computeShift(emp){
   const ci = emp.clockIn;
   const out = {
     suggBreak: null, suggReturn: null, suggEnd: null,
-    contMinutes: 0, elapsedBreakMinutes: 0, status: 'ok', statusLabel: 'En poste', breakOverMinutes: 0
+    contMinutes: 0, totalMinutes: 0, elapsedBreakMinutes: 0, status: 'ok', statusLabel: 'En poste', breakOverMinutes: 0
   };
 
   if(ci===null || ci===undefined){
@@ -815,18 +817,12 @@ function computeShift(emp){
     return out;
   }
 
-  if(emp.clockOut !== null && emp.clockOut !== undefined){
-    out.status = 'done';
-    out.statusLabel = 'Shift terminé';
-    out.contMinutes = 0;
-    return out;
-  }
+  const hasReturn = emp.breakReturn !== null && emp.breakReturn !== undefined;
+  const hasBreakStart = emp.breakStart !== null && emp.breakStart !== undefined;
+  const hasClockOut = emp.clockOut !== null && emp.clockOut !== undefined;
 
   out.suggBreak  = ci + SEGMENT_MIN;
   out.suggReturn = out.suggBreak + BREAK_MIN;
-
-  const hasReturn = emp.breakReturn !== null && emp.breakReturn !== undefined;
-  const hasBreakStart = emp.breakStart !== null && emp.breakStart !== undefined;
 
   out.suggEnd = hasReturn
     ? emp.breakReturn + SEGMENT_MIN
@@ -834,13 +830,43 @@ function computeShift(emp){
 
   const t = nowMinutes();
 
+  // Calcul du temps total travaillé cumulé (avant pause + après pause)
+  let preBreakMinutes = 0;
+  let postBreakMinutes = 0;
+
+  if (hasBreakStart) {
+    let pEnd = hasReturn ? emp.breakReturn : emp.breakStart;
+    let dur = pEnd - ci;
+    if(dur < 0) dur += 1440;
+    preBreakMinutes = dur;
+  } else {
+    let activeEnd = hasClockOut ? emp.clockOut : t;
+    let dur = activeEnd - ci;
+    if(dur < 0) dur += 1440;
+    preBreakMinutes = dur;
+  }
+
+  if (hasReturn) {
+    let activeEnd = hasClockOut ? emp.clockOut : t;
+    let dur = activeEnd - emp.breakReturn;
+    if(dur < 0) dur += 1440;
+    postBreakMinutes = dur;
+  }
+
+  out.totalMinutes = preBreakMinutes + postBreakMinutes;
+
+  if(hasClockOut){
+    out.status = 'done';
+    out.statusLabel = 'Shift terminé';
+    out.contMinutes = 0;
+    return out;
+  }
+
   if(hasBreakStart && !hasReturn){
     let elapsedBreak = t - emp.breakStart;
     if(elapsedBreak < 0) elapsedBreak += 1440;
     out.elapsedBreakMinutes = elapsedBreak;
-    out.contMinutes = ci !== null ? (function(){
-      let seg = emp.breakStart - ci; if(seg<0) seg+=1440; return seg;
-    })() : 0;
+    out.contMinutes = preBreakMinutes;
     out.breakOverMinutes = Math.max(0, elapsedBreak - BREAK_MIN);
     
     if(elapsedBreak >= BREAK_MIN){
@@ -986,6 +1012,7 @@ function render(){
       <td class="mono">${fmtHM(calc.suggEnd) || '<span class="dash">—</span>'}</td>
       <td class="mono">${fmtHM(emp.clockOut) || '<span class="dash">—</span>'}</td>
       <td class="mono conthrs">${calc.status==='break'||calc.status==='breakover' ? '<span class="dash">en pause</span>' : (calc.status==='done' ? '<span class="dash">fini</span>' : fmtHrs(calc.contMinutes))}</td>
+      <td class="mono totalhrs">${fmtHrs(calc.totalMinutes)}</td>
       <td><span class="pill ${meta.pill}"><span class="pilldot"></span>${calc.statusLabel}</span></td>
       <td class="printhide"><button class="${noteBtnClass}" data-badge="${emp.badge}" onclick="openNotesModal('${emp.badge}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>${noteBtnText}</button></td>
       <td class="printhide"><div class="action-group">${quickActions}</div></td>
@@ -1325,7 +1352,7 @@ async function extractPdfText(arrayBuffer){
       lineMap.get(y).push(item);
     });
     const sortedY = Array.from(lineMap.keys()).sort((a,b)=>b-a);
-    sortedY.forEach(y=>{
+    sortedY.exports = sortedY.forEach(y=>{
       const items = lineMap.get(y).sort((a,b)=>a.transform[4]-b.transform[4]);
       fullText += items.map(i=>i.str).join(' ') + '\n';
     });
