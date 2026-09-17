@@ -13,9 +13,8 @@
         sessionStorage.setItem("authenticated", "true");
       } else {
         alert("Incorrect password. Contact Fayssal Aissaoui.");
-        // Redirect or blank out the page if the password is wrong
         document.write("<h1 style='text-align:center; margin-top:50px;'>Incorrect Password, Contact Fayssal.</h1>");
-        window.stop(); // Stops loading the rest of the page
+        window.stop();
       }
     }
   })();
@@ -390,7 +389,7 @@ input,textarea,select{font-family:inherit;}
   background:var(--panel);
   box-shadow:var(--shadow);
 }
-table{width:100%;border-collapse:collapse;min-width:1180px;}
+table{width:100%;border-collapse:collapse;min-width:1280px;}
 thead th{
   text-align:left;
   font-size:11px;
@@ -437,6 +436,24 @@ tbody tr.st-done{opacity:0.55;}
 
 .dash{color:var(--text-muted);}
 .conthrs{font-weight:700;}
+
+.table-note-input{
+  background:var(--panel);
+  border:1px solid var(--line);
+  color:var(--text);
+  padding:4px 8px;
+  border-radius:3px;
+  font-size:12px;
+  width:160px;
+  transition:border-color .15s ease;
+}
+.table-note-input:focus{
+  border-color:var(--accent);
+  outline:none;
+  background:var(--panel-raised);
+  width:220px;
+}
+
 .rowedit{
   border:1px solid var(--line);
   background:transparent;
@@ -476,10 +493,11 @@ tbody tr.st-done{opacity:0.55;}
 .modal .sub{font-size:12px;color:var(--text-muted);margin-bottom:16px;}
 .field{margin-bottom:12px;}
 .field label{display:block;font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:5px;letter-spacing:0.02em;}
-.field input{
+.field input, .field textarea{
   width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:3px;
   background:var(--panel);color:var(--text);font-size:13px;
 }
+.field textarea{min-height:70px;resize:vertical;}
 .field input[type="time"]{font-family:'IBM Plex Mono',monospace;}
 .fieldrow{display:flex;gap:10px;}
 .fieldrow .field{flex:1;}
@@ -505,6 +523,7 @@ tbody tr.st-done{opacity:0.55;}
   .pill.crit{background:#FBDAD3 !important;color:#8C2A17 !important;}
   .pill.brk{background:#D9E8FB !important;color:#1E4F8C !important;}
   table{min-width:0;}
+  .table-note-input{border:none;background:transparent;width:auto;padding:0;}
   .printfooter{display:block !important;margin-top:14px;font-size:10px;color:#555;}
 }
 .printfooter{display:none;}
@@ -606,6 +625,7 @@ tbody tr.st-done{opacity:0.55;}
           <th>Sortie</th>
           <th>Heures Cont.</th>
           <th>Statut</th>
+          <th>Notes Manager</th>
           <th class="printhide">Actions Rapides</th>
           <th class="printhide"></th>
         </tr>
@@ -646,6 +666,10 @@ tbody tr.st-done{opacity:0.55;}
     <div class="fieldrow">
       <div class="field"><label>Retour de pause</label><input type="time" id="fBreakReturn"></div>
       <div class="field"><label>Heure de sortie</label><input type="time" id="fClockOut"></div>
+    </div>
+    <div class="field">
+      <label>Notes du Manager</label>
+      <textarea id="fNote" placeholder="Ex: Retard toléré / Échange de poste..."></textarea>
     </div>
     <div class="modalactions">
       <button class="linkbtn" id="btnDelete" style="margin-right:auto;display:none;">Supprimer l'employé</button>
@@ -793,7 +817,6 @@ function computeShift(emp){
   const t = nowMinutes();
 
   if(hasBreakStart && !hasReturn){
-    /* ---- EN PAUSE ---- */
     let elapsedBreak = t - emp.breakStart;
     if(elapsedBreak < 0) elapsedBreak += 1440;
     out.elapsedBreakMinutes = elapsedBreak;
@@ -813,12 +836,10 @@ function computeShift(emp){
   }
 
   if(hasReturn){
-    /* ---- DEUXIÈME SEGMENT ---- */
     let cont = t - emp.breakReturn;
     if(cont < 0) cont += 1440;
     out.contMinutes = cont;
   } else {
-    /* ---- PREMIER SEGMENT ---- */
     let cont = t - ci;
     if(cont < 0) cont += 1440;
     out.contMinutes = cont;
@@ -839,7 +860,7 @@ function computeShift(emp){
 }
 
 /* ============================================================
-   AFFICHAGE DE DU TABLEAU
+   AFFICHAGE DU TABLEAU
    ============================================================ */
 function statusMeta(status){
   return ({
@@ -875,18 +896,17 @@ function render(){
   }
 
   const filtered = processed.filter(({emp, calc}) => {
-    // Check status filter
     if(currentFilter === 'working' && !(calc.status === 'ok' || calc.status === 'warn')) return false;
     if(currentFilter === 'break' && !(calc.status === 'break' || calc.status === 'breakover')) return false;
     if(currentFilter === 'action' && !(calc.status === 'warn' || calc.status === 'crit' || calc.status === 'breakover')) return false;
 
-    // Check search input
     if(searchQuery.trim() !== ''){
       const q = searchQuery.toLowerCase();
       const matchName = (emp.name || '').toLowerCase().includes(q);
       const matchBadge = (emp.badge || '').toLowerCase().includes(q);
       const matchId = (emp.id || '').toLowerCase().includes(q);
-      if(!matchName && !matchBadge && !matchId) return false;
+      const matchNote = (emp.note || '').toLowerCase().includes(q);
+      if(!matchName && !matchBadge && !matchId && !matchNote) return false;
     }
 
     return true; 
@@ -914,7 +934,6 @@ function render(){
       alerts.push({emp, calc, kind:'warn'});
     }
 
-    // Actions rapides
     let quickActions = '';
     if(emp.clockOut !== null && emp.clockOut !== undefined){
       quickActions = `<span class="dash">Terminé</span>`;
@@ -946,6 +965,7 @@ function render(){
       <td class="mono">${fmtHM(emp.clockOut) || '<span class="dash">—</span>'}</td>
       <td class="mono conthrs">${calc.status==='break'||calc.status==='breakover' ? '<span class="dash">en pause</span>' : (calc.status==='done' ? '<span class="dash">fini</span>' : fmtHrs(calc.contMinutes))}</td>
       <td><span class="pill ${meta.pill}"><span class="pilldot"></span>${calc.statusLabel}</span></td>
+      <td><input type="text" class="table-note-input" value="${emp.note || ''}" placeholder="Ajouter note..." onchange="updateNote('${emp.badge}', this.value)"></td>
       <td class="printhide"><div class="action-group">${quickActions}</div></td>
       <td class="printhide"><button class="rowedit" data-badge="${emp.badge}" title="Modifier"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button></td>
     `;
@@ -960,7 +980,7 @@ function render(){
 }
 
 /* ============================================================
-   BOUTONS D'ACTION RAPIDE
+   ACTIONS ET MISES À JOUR DIRECTES
    ============================================================ */
 window.quickBreak = function(badge){
   const idx = employees.findIndex(e => String(e.badge) === String(badge));
@@ -986,6 +1006,14 @@ window.quickClockOut = function(badge){
     employees[idx].clockOut = nowMinutes();
     saveState();
     render();
+  }
+};
+
+window.updateNote = function(badge, val){
+  const idx = employees.findIndex(e => String(e.badge) === String(badge));
+  if(idx > -1){
+    employees[idx].note = val.trim();
+    saveState();
   }
 };
 
@@ -1066,6 +1094,7 @@ function openModal(badge){
   document.getElementById('fBreakStart').value = emp ? (minToHM(emp.breakStart)||'') : '';
   document.getElementById('fBreakReturn').value = emp ? (minToHM(emp.breakReturn)||'') : '';
   document.getElementById('fClockOut').value = emp ? (minToHM(emp.clockOut)||'') : '';
+  document.getElementById('fNote').value = emp ? (emp.note||'') : '';
   document.getElementById('btnDelete').style.display = emp ? 'block' : 'none';
   modalBg.classList.add('show');
 }
@@ -1085,6 +1114,7 @@ document.getElementById('btnSave').addEventListener('click', ()=>{
     breakStart: hmToMin(document.getElementById('fBreakStart').value),
     breakReturn: hmToMin(document.getElementById('fBreakReturn').value),
     clockOut: hmToMin(document.getElementById('fClockOut').value),
+    note: document.getElementById('fNote').value.trim()
   };
   const idx = employees.findIndex(e=>String(e.badge)===String(editingBadge));
   if(editingBadge && idx>-1){
@@ -1213,17 +1243,16 @@ function parseLogText(text){
     }
 
     const existingIdx = employees.findIndex(e=>String(e.badge)===String(badge));
-    const rec = {badge, id, name, clockIn, breakStart, breakReturn, clockOut};
+    const existingNote = existingIdx > -1 ? (employees[existingIdx].note || '') : '';
+    const rec = {badge, id, name, clockIn, breakStart, breakReturn, clockOut, note: existingNote};
     if(existingIdx>-1) employees[existingIdx] = rec; else employees.push(rec);
 
     added++;
     if(clockIn===null){
       incomplete++;
       log('⚠ Badge '+badge+' ('+(name||'sans nom')+') — pointage d\'entrée introuvable. À compléter.', 'warn');
-    } else if(breakStart!==null && breakReturn===null){
-      log('Badge '+badge+' ('+name+') — importé. Actuellement en pause.', 'ok');
     } else {
-      log('Badge '+badge+' ('+name+') — importé avec succès.', 'ok');
+      log('Badge '+badge+' ('+name+') — importé.', 'ok');
     }
   });
 
@@ -1267,7 +1296,7 @@ async function handlePdfFile(file){
     const buf = await file.arrayBuffer();
     const text = await extractPdfText(buf);
     if(!text.trim()){
-      log('Le PDF ne contient pas de texte extrait. Il s\'agit peut-être d\'un document scanné.', 'warn');
+      log('Le PDF ne contient pas de texte extrait.', 'warn');
       return;
     }
     parseLogText(text);
