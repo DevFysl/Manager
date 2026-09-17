@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <!-- Standard Favicon -->
-<link rel="icon" type="image/webp" href="200.webp">
-
-<!-- iOS & Web App Shortcut Icon -->
-<link rel="apple-touch-icon" href="200.webp">
   <script>
   (function() {
     const CORRECT_PASSWORD = "99"; // Change this to your desired password
@@ -28,6 +23,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Contract Social Manager</title>
+<link rel="icon" type="image/webp" href="200.webp">
+<link rel="apple-touch-icon" href="200.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -250,13 +247,20 @@ input,textarea,select{font-family:inherit;}
 .btn-action.out-btn{border-color:var(--line);color:var(--text-muted);}
 .btn-action.out-btn:hover{background:var(--line-soft);color:var(--text);}
 
-/* ================= FILTER BAR ================= */
+/* ================= FILTER & SEARCH BAR ================= */
 .filterbar{
   display:flex;
-  gap:6px;
+  gap:8px;
   margin-bottom:12px;
   flex-wrap:wrap;
   align-items:center;
+  justify-content:space-between;
+}
+.filter-group{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  flex-wrap:wrap;
 }
 .filter-btn{
   border:1px solid var(--line);
@@ -276,6 +280,31 @@ input,textarea,select{font-family:inherit;}
   background:var(--accent);
   color:#FFF;
   border-color:var(--accent);
+}
+
+.search-box{
+  display:flex;
+  align-items:center;
+  background:var(--panel-raised);
+  border:1px solid var(--line);
+  border-radius:3px;
+  padding:4px 10px;
+  min-width:240px;
+}
+.search-box svg{
+  width:14px;
+  height:14px;
+  color:var(--text-muted);
+  margin-right:6px;
+  flex:none;
+}
+.search-box input{
+  border:none;
+  background:transparent;
+  color:var(--text);
+  font-size:12px;
+  width:100%;
+  outline:none;
 }
 
 /* ================= ALERT STRIP ================= */
@@ -348,7 +377,7 @@ input,textarea,select{font-family:inherit;}
   padding-top:10px;
   display:none;
 }
-.parselog.show{display:none;}
+.parselog.show{display:block;}
 .parselog div{padding:2px 0;}
 .parselog .ok{color:var(--status-ok-fg);}
 .parselog .warn{color:var(--status-warn-fg);}
@@ -483,6 +512,8 @@ tbody tr.st-done{opacity:0.55;}
 @media (max-width:720px){
   .liveclock{font-size:20px;}
   .header{flex-direction:column;}
+  .filterbar{flex-direction:column;align-items:stretch;}
+  .search-box{min-width:100%;}
 }
 </style>
 </head>
@@ -544,13 +575,20 @@ tbody tr.st-done{opacity:0.55;}
     <div class="parselog" id="parseLog"></div>
   </div>
 
-  <!-- BARRE DE FILTRES -->
+  <!-- BARRE DE FILTRES ET RECHERCHE -->
   <div class="filterbar printhide">
-    <span style="font-size:12px;font-weight:600;color:var(--text-muted);margin-right:6px;">Filtrer :</span>
-    <button class="filter-btn active" data-filter="all">Tous les employés</button>
-    <button class="filter-btn" data-filter="working">En poste</button>
-    <button class="filter-btn" data-filter="break">En pause</button>
-    <button class="filter-btn" data-filter="action">Action requise</button>
+    <div class="filter-group">
+      <span style="font-size:12px;font-weight:600;color:var(--text-muted);margin-right:2px;">Filtrer :</span>
+      <button class="filter-btn active" data-filter="all">Tous les employés</button>
+      <button class="filter-btn" data-filter="working">En poste</button>
+      <button class="filter-btn" data-filter="break">En pause</button>
+      <button class="filter-btn" data-filter="action">Action requise</button>
+    </div>
+
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" placeholder="Rechercher (Nom, Badge, ID)...">
+    </div>
   </div>
 
   <div class="tablewrap">
@@ -637,6 +675,7 @@ let employees = [];
 let nextTempId = 1;
 let editingBadge = null;
 let currentFilter = 'all';
+let searchQuery = '';
 let soundEnabled = false;
 let audioCtx = null;
 
@@ -725,7 +764,7 @@ function computeShift(emp){
   const ci = emp.clockIn;
   const out = {
     suggBreak: null, suggReturn: null, suggEnd: null,
-    contMinutes: 0, status: 'ok', statusLabel: 'En poste', breakOverMinutes: 0
+    contMinutes: 0, elapsedBreakMinutes: 0, status: 'ok', statusLabel: 'En poste', breakOverMinutes: 0
   };
 
   if(ci===null || ci===undefined){
@@ -757,16 +796,18 @@ function computeShift(emp){
     /* ---- EN PAUSE ---- */
     let elapsedBreak = t - emp.breakStart;
     if(elapsedBreak < 0) elapsedBreak += 1440;
+    out.elapsedBreakMinutes = elapsedBreak;
     out.contMinutes = ci !== null ? (function(){
       let seg = emp.breakStart - ci; if(seg<0) seg+=1440; return seg;
     })() : 0;
     out.breakOverMinutes = Math.max(0, elapsedBreak - BREAK_MIN);
-    if(elapsedBreak > BREAK_MIN){
+    
+    if(elapsedBreak >= BREAK_MIN){
       out.status = 'breakover';
-      out.statusLabel = 'PAUSE DÉPASSÉE';
+      out.statusLabel = `En pause (${elapsedBreak}m) - DÉPASSÉE`;
     } else {
       out.status = 'break';
-      out.statusLabel = 'En pause';
+      out.statusLabel = `En pause (${elapsedBreak}m)`;
     }
     return out;
   }
@@ -833,10 +874,21 @@ function render(){
     triggerBeep();
   }
 
-  const filtered = processed.filter(({calc}) => {
-    if(currentFilter === 'working') return calc.status === 'ok' || calc.status === 'warn';
-    if(currentFilter === 'break') return calc.status === 'break';
-    if(currentFilter === 'action') return calc.status === 'warn' || calc.status === 'crit' || calc.status === 'breakover';
+  const filtered = processed.filter(({emp, calc}) => {
+    // Check status filter
+    if(currentFilter === 'working' && !(calc.status === 'ok' || calc.status === 'warn')) return false;
+    if(currentFilter === 'break' && !(calc.status === 'break' || calc.status === 'breakover')) return false;
+    if(currentFilter === 'action' && !(calc.status === 'warn' || calc.status === 'crit' || calc.status === 'breakover')) return false;
+
+    // Check search input
+    if(searchQuery.trim() !== ''){
+      const q = searchQuery.toLowerCase();
+      const matchName = (emp.name || '').toLowerCase().includes(q);
+      const matchBadge = (emp.badge || '').toLowerCase().includes(q);
+      const matchId = (emp.id || '').toLowerCase().includes(q);
+      if(!matchName && !matchBadge && !matchId) return false;
+    }
+
     return true; 
   });
 
@@ -955,8 +1007,8 @@ function renderAlerts(alerts){
   }
   if(brk.length){
     const row=document.createElement('div');
-    row.className='alertrow brk';
-    row.innerHTML = `<span class="alertdot"></span> Pause supérieure à 30 min : ${brk.map(a=>a.emp.name||a.emp.badge).join(', ')}`;
+    row.className='alertrow crit';
+    row.innerHTML = `<span class="alertdot"></span> PAUSE DÉPASSÉE (≥ 30 MIN) : ${brk.map(a=>a.emp.name||a.emp.badge).join(', ')}`;
     strip.appendChild(row);
   }
   if(warn.length){
@@ -968,7 +1020,7 @@ function renderAlerts(alerts){
 }
 
 /* ============================================================
-   FILTRES
+   FILTRES ET RECHERCHE
    ============================================================ */
 document.querySelectorAll('.filter-btn').forEach(btn => {
   btn.addEventListener('click', function(){
@@ -977,6 +1029,11 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     currentFilter = this.dataset.filter;
     render();
   });
+});
+
+document.getElementById('searchInput').addEventListener('input', function(e){
+  searchQuery = e.target.value;
+  render();
 });
 
 /* ============================================================
