@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contract Social Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+
+/* ================= THEME TOKENS ================= */
+:root{
+  --bg:#E4E7E1;
+  --panel:#F7F8F4;
+  --panel-raised:#FFFFFF;
+  --line:#C7CCC3;
+  --line-soft:#D7DAD1;
+  --text:#1B201C;
+  --text-muted:#5B645C;
+  --accent:#9A5420;
+  --accent-strong:#7C4319;
+
+  --status-ok-bg:#DCEEE1;
+  --status-ok-fg:#1E7A46;
+  --status-ok-line:#3DAE72;
+
+  --status-warn-bg:#FCEFCB;
+  --status-warn-fg:#7A5A0A;
+  --status-warn-line:#E8B23D;
+
+  --status-crit-bg:#FBDAD3;
+  --status-crit-fg:#8C2A17;
+  --status-crit-line:#E8543D;
+
+  --status-break-bg:#D9E8FB;
+  --status-break-fg:#1E4F8C;
+  --status-break-line:#3D8EE8;
+
+  --shadow: 0 1px 2px rgba(20,24,20,0.06), 0 4px 14px rgba(20,24,20,0.06);
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14181D;
+    --panel:#1B2129;
+    --panel-raised:#20272F;
+    --line:#323C46;
+    --line-soft:#2A323B;
+    --text:#E9EAE4;
+    --text-muted:#8B94A0;
+    --accent:#D08341;
+    --accent-strong:#E89A53;
+
+    --status-ok-bg:rgba(61,174,114,0.16);
+    --status-ok-fg:#6FD79C;
+    --status-ok-line:#3DAE72;
+
+    --status-warn-bg:rgba(232,178,61,0.16);
+    --status-warn-fg:#F2C566;
+    --status-warn-line:#E8B23D;
+
+    --status-crit-bg:rgba(232,84,61,0.18);
+    --status-crit-fg:#FF8B77;
+    --status-crit-line:#E8543D;
+
+    --status-break-bg:rgba(61,142,232,0.16);
+    --status-break-fg:#7FB6F5;
+    --status-break-line:#3D8EE8;
+
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14181D;
+  --panel:#1B2129;
+  --panel-raised:#20272F;
+  --line:#323C46;
+  --line-soft:#2A323B;
+  --text:#E9EAE4;
+  --text-muted:#8B94A0;
+  --accent:#D08341;
+  --accent-strong:#E89A53;
+
+  --status-ok-bg:rgba(61,174,114,0.16);
+  --status-ok-fg:#6FD79C;
+  --status-ok-line:#3DAE72;
+
+  --status-warn-bg:rgba(232,178,61,0.16);
+  --status-warn-fg:#F2C566;
+  --status-warn-line:#E8B23D;
+
+  --status-crit-bg:rgba(232,84,61,0.18);
+  --status-crit-fg:#FF8B77;
+  --status-crit-line:#E8543D;
+
+  --status-break-bg:rgba(61,142,232,0.16);
+  --status-break-fg:#7FB6F5;
+  --status-break-line:#3D8EE8;
+
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.35);
+}
+
+/* ================= BASE ================= */
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Space Grotesk', -apple-system, sans-serif;
+  min-height:100vh;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+.mono{font-family:'IBM Plex Mono', 'SF Mono', Menlo, monospace;}
+button{font-family:inherit;cursor:pointer;}
+input,textarea,select{font-family:inherit;}
+
+/* ================= LAYOUT SHELL ================= */
+.app{max-width:1440px;margin:0 auto;padding:20px 20px 60px;}
+
+.header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:20px;
+  flex-wrap:wrap;
+  border-bottom:1px solid var(--line);
+  padding-bottom:18px;
+  margin-bottom:18px;
+}
+.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;}
+.brand h1{
+  font-size:22px;
+  font-weight:700;
+  letter-spacing:-0.01em;
+  margin:0;
+}
+.brand .author{
+  color:var(--text-muted);
+  font-size:12px;
+  font-weight:600;
+  background:var(--panel);
+  border:1px solid var(--line);
+  padding:3px 8px;
+  border-radius:12px;
+}
+.headerside{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+.liveclock{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:26px;
+  font-weight:600;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:0.01em;
+  border-left:2px solid var(--accent);
+  padding-left:12px;
+  line-height:1;
+}
+.liveclock .lbl{
+  display:block;
+  font-family:'Space Grotesk',sans-serif;
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:0.06em;
+  color:var(--text-muted);
+  margin-bottom:3px;
+  text-transform:uppercase;
+}
+
+.controls{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{
+  border:1px solid var(--line);
+  background:var(--panel-raised);
+  color:var(--text);
+  padding:9px 14px;
+  font-size:13px;
+  font-weight:600;
+  border-radius:3px;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  transition:border-color .15s ease, transform .1s ease, background-color .15s ease;
+}
+.btn:hover{border-color:var(--accent);}
+.btn:active{transform:translateY(1px);}
+.btn-primary{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:#FFF6EC;
+}
+.btn-primary:hover{background:var(--accent-strong);border-color:var(--accent-strong);}
+.btn-ghost{background:transparent;}
+.btn-danger{
+  background:transparent;
+  border-color:var(--status-crit-line);
+  color:var(--status-crit-fg);
+}
+.btn-danger:hover{
+  background:var(--status-crit-bg);
+}
+.btn-active{
+  background:var(--accent);
+  color:#FFF;
+  border-color:var(--accent);
+}
+.btn svg{width:14px;height:14px;flex:none;}
+
+/* ================= QUICK ACTION BUTTONS IN TABLE ================= */
+.action-group{display:flex;gap:4px;align-items:center;}
+.btn-action{
+  padding:4px 8px;
+  font-size:11px;
+  font-weight:600;
+  border-radius:3px;
+  border:1px solid var(--line);
+  background:var(--panel-raised);
+  color:var(--text);
+  white-space:nowrap;
+  transition:all 0.15s ease;
+}
+.btn-action:hover{border-color:var(--accent);}
+.btn-action.break-btn{border-color:var(--status-break-line);color:var(--status-break-fg);}
+.btn-action.break-btn:hover{background:var(--status-break-bg);}
+.btn-action.return-btn{border-color:var(--status-ok-line);color:var(--status-ok-fg);}
+.btn-action.return-btn:hover{background:var(--status-ok-bg);}
+.btn-action.out-btn{border-color:var(--line);color:var(--text-muted);}
+.btn-action.out-btn:hover{background:var(--line-soft);color:var(--text);}
+
+/* ================= FILTER BAR ================= */
+.filterbar{
+  display:flex;
+  gap:6px;
+  margin-bottom:12px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.filter-btn{
+  border:1px solid var(--line);
+  background:var(--panel);
+  color:var(--text-muted);
+  padding:6px 12px;
+  font-size:12px;
+  font-weight:600;
+  border-radius:3px;
+  transition:all 0.15s ease;
+}
+.filter-btn:hover{
+  border-color:var(--accent);
+  color:var(--text);
+}
+.filter-btn.active{
+  background:var(--accent);
+  color:#FFF;
+  border-color:var(--accent);
+}
+
+/* ================= ALERT STRIP ================= */
+.alertstrip{
+  display:none;
+  flex-direction:column;
+  gap:6px;
+  margin-bottom:16px;
+}
+.alertstrip.show{display:flex;}
+.alertrow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 14px;
+  border-radius:3px;
+  font-size:13px;
+  font-weight:600;
+  border:1px solid transparent;
+}
+.alertrow.crit{background:var(--status-crit-bg);color:var(--status-crit-fg);border-color:var(--status-crit-line);}
+.alertrow.warn{background:var(--status-warn-bg);color:var(--status-warn-fg);border-color:var(--status-warn-line);}
+.alertrow.brk{background:var(--status-break-bg);color:var(--status-break-fg);border-color:var(--status-break-line);}
+.alertdot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none;}
+
+/* ================= INGEST PANEL ================= */
+.ingest{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:16px;
+  margin-bottom:20px;
+}
+.ingest-head{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;margin-bottom:12px;
+}
+.ingest-title{font-size:13px;font-weight:600;color:var(--text-muted);}
+.dropzone{
+  border:1.5px dashed var(--line);
+  border-radius:4px;
+  padding:26px 16px;
+  text-align:center;
+  color:var(--text-muted);
+  font-size:13px;
+  transition:border-color .15s ease, background .15s ease;
+}
+.dropzone.drag{border-color:var(--accent);background:var(--status-break-bg);}
+.dropzone b{color:var(--text);font-weight:600;}
+.dropzone .sub{font-size:12px;margin-top:4px;}
+.pastearea{margin-top:12px;display:none;}
+.pastearea.show{display:block;}
+.pastearea textarea{
+  width:100%;min-height:120px;resize:vertical;
+  background:var(--panel-raised);
+  border:1px solid var(--line);
+  color:var(--text);
+  border-radius:3px;
+  padding:10px;
+  font-size:12px;
+  line-height:1.5;
+}
+.parselog{
+  margin-top:12px;
+  font-size:12px;
+  color:var(--text-muted);
+  max-height:120px;
+  overflow-y:auto;
+  border-top:1px solid var(--line-soft);
+  padding-top:10px;
+  display:none;
+}
+.parselog.show{display:none;}
+.parselog div{padding:2px 0;}
+.parselog .ok{color:var(--status-ok-fg);}
+.parselog .warn{color:var(--status-warn-fg);}
+
+/* ================= TABLE ================= */
+.tablewrap{
+  border:1px solid var(--line);
+  border-radius:4px;
+  overflow-x:auto;
+  background:var(--panel);
+  box-shadow:var(--shadow);
+}
+table{width:100%;border-collapse:collapse;min-width:1180px;}
+thead th{
+  text-align:left;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:0.03em;
+  color:var(--text-muted);
+  padding:10px 12px;
+  border-bottom:1px solid var(--line);
+  white-space:nowrap;
+  background:var(--panel);
+  position:sticky;top:0;
+}
+tbody td{
+  padding:11px 12px;
+  font-size:13px;
+  border-bottom:1px solid var(--line-soft);
+  white-space:nowrap;
+}
+tbody td.name{font-weight:600;white-space:normal;}
+tbody td.name .badgeno{
+  display:block;font-size:11px;font-weight:500;color:var(--text-muted);
+  font-family:'IBM Plex Mono',monospace;
+}
+tbody tr{border-left:4px solid transparent;}
+tbody tr:hover{background:var(--panel-raised);}
+tbody tr.st-ok{border-left-color:var(--status-ok-line);}
+tbody tr.st-warn{border-left-color:var(--status-warn-line);background:var(--status-warn-bg);}
+tbody tr.st-crit{border-left-color:var(--status-crit-line);background:var(--status-crit-bg);}
+tbody tr.st-break{border-left-color:var(--status-break-line);background:var(--status-break-bg);}
+tbody tr.st-breakover{border-left-color:var(--status-crit-line);background:var(--status-crit-bg);}
+tbody tr.st-done{opacity:0.55;}
+
+.pill{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:11.5px;font-weight:700;letter-spacing:0.02em;
+  padding:4px 9px;border-radius:20px;
+}
+.pill.ok{background:var(--status-ok-bg);color:var(--status-ok-fg);}
+.pill.warn{background:var(--status-warn-bg);color:var(--status-warn-fg);}
+.pill.crit{background:var(--status-crit-bg);color:var(--status-crit-fg);}
+.pill.brk{background:var(--status-break-bg);color:var(--status-break-fg);}
+.pill.done{background:var(--line-soft);color:var(--text-muted);}
+.pilldot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+.dash{color:var(--text-muted);}
+.conthrs{font-weight:700;}
+.rowedit{
+  border:1px solid var(--line);
+  background:transparent;
+  color:var(--text-muted);
+  width:26px;height:26px;border-radius:3px;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.rowedit:hover{border-color:var(--accent);color:var(--accent);}
+
+.emptystate{
+  padding:60px 20px;text-align:center;color:var(--text-muted);font-size:13px;
+}
+.emptystate b{display:block;color:var(--text);font-size:15px;font-weight:600;margin-bottom:6px;}
+
+.footnote{
+  margin-top:14px;font-size:11.5px;color:var(--text-muted);
+  display:flex;gap:18px;flex-wrap:wrap;
+}
+.legend{display:flex;align-items:center;gap:6px;}
+.legend i{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+/* ================= MODAL ================= */
+.modalbg{
+  position:fixed;inset:0;background:rgba(10,12,10,0.5);
+  display:none;align-items:center;justify-content:center;z-index:50;padding:20px;
+}
+.modalbg.show{display:flex;}
+.modal{
+  background:var(--panel-raised);
+  border:1px solid var(--line);
+  border-radius:6px;
+  width:100%;max-width:420px;
+  padding:20px;
+  box-shadow:var(--shadow);
+}
+.modal h3{margin:0 0 4px;font-size:16px;}
+.modal .sub{font-size:12px;color:var(--text-muted);margin-bottom:16px;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:5px;letter-spacing:0.02em;}
+.field input{
+  width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:3px;
+  background:var(--panel);color:var(--text);font-size:13px;
+}
+.field input[type="time"]{font-family:'IBM Plex Mono',monospace;}
+.fieldrow{display:flex;gap:10px;}
+.fieldrow .field{flex:1;}
+.modalactions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+.linkbtn{background:none;border:none;color:var(--text-muted);font-size:12px;text-decoration:underline;padding:0;}
+.linkbtn:hover{color:var(--accent);}
+
+/* ================= PRINT ================= */
+@media print{
+  body{background:#FFF;}
+  .app{max-width:none;padding:10px 14px;}
+  .controls, .ingest, .dropzone, .headerside .controls, .rowedit, .filterbar, .action-group, .printhide{display:none !important;}
+  .header{border-bottom:2px solid #000;}
+  .liveclock{font-size:15px;}
+  .tablewrap{border:1px solid #999;box-shadow:none;}
+  thead th{position:static;background:#EEE !important;color:#111 !important;}
+  tbody tr:hover{background:none;}
+  tbody tr.st-warn{background:#FCEFCB !important;}
+  tbody tr.st-crit, tbody tr.st-breakover{background:#FBDAD3 !important;}
+  tbody tr.st-break{background:#D9E8FB !important;}
+  .pill.ok{background:#DCEEE1 !important;color:#1E7A46 !important;}
+  .pill.warn{background:#FCEFCB !important;color:#7A5A0A !important;}
+  .pill.crit{background:#FBDAD3 !important;color:#8C2A17 !important;}
+  .pill.brk{background:#D9E8FB !important;color:#1E4F8C !important;}
+  table{min-width:0;}
+  .printfooter{display:block !important;margin-top:14px;font-size:10px;color:#555;}
+}
+.printfooter{display:none;}
+
+@media (max-width:720px){
+  .liveclock{font-size:20px;}
+  .header{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="header">
+    <div class="brand">
+      <h1>Contract Social Manager</h1>
+      <span class="author">Créé par Fayssal</span>
+    </div>
+    <div class="headerside">
+      <div class="liveclock"><span class="lbl">Heure Système</span><span id="clockNow">--:--:--</span></div>
+      <div class="controls printhide">
+        <button class="btn" id="btnSound" title="Activer/Désactiver l'alerte sonore">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          <span id="soundLabel">Son Désactivé</span>
+        </button>
+        <button class="btn" id="btnTheme" title="Changer le thème">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          Thème
+        </button>
+        <button class="btn" id="btnAdd">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Ajouter employé
+        </button>
+        <button class="btn btn-danger" id="btnClear">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          Vider la liste
+        </button>
+        <button class="btn btn-primary" id="btnPrint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+          Imprimer / Exporter
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="alertstrip printhide" id="alertStrip"></div>
+
+  <div class="ingest printhide">
+    <div class="ingest-head">
+      <div class="ingest-title">Importation — Rapport des Transactions (Pointeuse)</div>
+      <button class="linkbtn" id="btnTogglePaste">coller le texte brut</button>
+    </div>
+    <div class="dropzone" id="dropzone">
+      <div><b>Déposez un fichier PDF ici</b> ou cliquez pour parcourir</div>
+      <div class="sub">Lit les en-têtes (Matricule / ID / Nom) et les balises G (Entrée/Retour) &amp; P (Pause) du journal.</div>
+      <input type="file" id="fileInput" accept="application/pdf" style="display:none;">
+    </div>
+    <div class="pastearea" id="pasteArea">
+      <textarea id="pasteText" placeholder="Collez le texte du rapport ici si vous ne pouvez pas charger le fichier PDF directement..."></textarea>
+      <div style="margin-top:8px;display:flex;gap:8px;">
+        <button class="btn btn-primary" id="btnParsePaste">Analyser le texte</button>
+        <button class="btn btn-ghost" id="btnSample">Charger un exemple</button>
+      </div>
+    </div>
+    <div class="parselog" id="parseLog"></div>
+  </div>
+
+  <!-- BARRE DE FILTRES -->
+  <div class="filterbar printhide">
+    <span style="font-size:12px;font-weight:600;color:var(--text-muted);margin-right:6px;">Filtrer :</span>
+    <button class="filter-btn active" data-filter="all">Tous les employés</button>
+    <button class="filter-btn" data-filter="working">En poste</button>
+    <button class="filter-btn" data-filter="break">En pause</button>
+    <button class="filter-btn" data-filter="action">Action requise</button>
+  </div>
+
+  <div class="tablewrap">
+    <table id="empTable">
+      <thead>
+        <tr>
+          <th>Badge</th>
+          <th>Nom</th>
+          <th>Entrée</th>
+          <th>Pause Sugg.</th>
+          <th>Pause Eff.</th>
+          <th>Retour Sugg.</th>
+          <th>Retour Eff.</th>
+          <th>Sortie</th>
+          <th>Heures Cont.</th>
+          <th>Statut</th>
+          <th class="printhide">Actions Rapides</th>
+          <th class="printhide"></th>
+        </tr>
+      </thead>
+      <tbody id="empBody"></tbody>
+    </table>
+    <div class="emptystate" id="emptyState">
+      <b>Aucun quart de travail chargé</b>
+      Importez le rapport PDF de la pointeuse du jour, collez son texte ou ajoutez un employé manuellement.
+    </div>
+  </div>
+
+  <div class="footnote printhide">
+    <span class="legend"><i style="background:var(--status-ok-line)"></i> Conforme</span>
+    <span class="legend"><i style="background:var(--status-warn-line)"></i> Proche limite 4h50 (≥4h30)</span>
+    <span class="legend"><i style="background:var(--status-crit-line)"></i> Limite dépassée / Pause en retard</span>
+    <span class="legend"><i style="background:var(--status-break-line)"></i> En pause</span>
+    <span>Règle : Max 4h50 de travail continu, 30 min de pause obligatoire.</span>
+  </div>
+
+  <div class="printfooter">Généré par Contract Social Manager (Créé par Fayssal) — <span id="printTimestamp"></span>.</div>
+
+</div>
+
+<div class="modalbg" id="modalBg">
+  <div class="modal">
+    <h3 id="modalTitle">Ajouter un employé</h3>
+    <div class="sub" id="modalSub">Entrez les pointages manuellement ou corrigez un enregistrement.</div>
+    <div class="fieldrow">
+      <div class="field"><label>N° Badge / Matricule</label><input type="text" id="fBadge" placeholder="4021"></div>
+      <div class="field"><label>ID</label><input type="text" id="fId" placeholder="0091"></div>
+    </div>
+    <div class="field"><label>Nom & Prénom</label><input type="text" id="fName" placeholder="Nom de l'employé"></div>
+    <div class="fieldrow">
+      <div class="field"><label>Heure d'entrée</label><input type="time" id="fClockIn"></div>
+      <div class="field"><label>Début de pause</label><input type="time" id="fBreakStart"></div>
+    </div>
+    <div class="fieldrow">
+      <div class="field"><label>Retour de pause</label><input type="time" id="fBreakReturn"></div>
+      <div class="field"><label>Heure de sortie</label><input type="time" id="fClockOut"></div>
+    </div>
+    <div class="modalactions">
+      <button class="linkbtn" id="btnDelete" style="margin-right:auto;display:none;">Supprimer l'employé</button>
+      <button class="btn btn-ghost" id="btnCancel">Annuler</button>
+      <button class="btn btn-primary" id="btnSave">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(function(){
+
+/* ============================================================
+   CONFIG — Règles de travail (en minutes)
+   ============================================================ */
+const SEGMENT_MIN   = 4*60 + 50;   // 4h50 segment continu max
+const BREAK_MIN      = 30;         // 30 min pause obligatoire
+const WARN_MIN        = 4*60 + 30;  // Seuil jaune
+const CRIT_MIN        = 4*60 + 50;  // Seuil rouge (limite)
+const FULL_NOBREAK_MIN= 10*60 + 10; // Si aucune pause n'est prise
+
+/* ============================================================
+   ÉTAT DE L'APPLICATION
+   ============================================================ */
+let employees = []; 
+let nextTempId = 1;
+let editingBadge = null;
+let currentFilter = 'all';
+let soundEnabled = false;
+let audioCtx = null;
+
+/* ---- Sauvegarde locale ---- */
+function saveState(){
+  try{
+    localStorage.setItem('csct_employees', JSON.stringify(employees));
+  }catch(e){}
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem('csct_employees');
+    if(raw){ employees = JSON.parse(raw) || []; }
+  }catch(e){ employees = []; }
+}
+
+/* ============================================================
+   ALERTES SONORES
+   ============================================================ */
+function triggerBeep(){
+  if(!soundEnabled) return;
+  try {
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.3);
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.3);
+  } catch(e) {}
+}
+
+document.getElementById('btnSound').addEventListener('click', function(){
+  soundEnabled = !soundEnabled;
+  const label = document.getElementById('soundLabel');
+  if(soundEnabled){
+    this.classList.add('btn-active');
+    label.textContent = 'Son Activé';
+    triggerBeep();
+  } else {
+    this.classList.remove('btn-active');
+    label.textContent = 'Son Désactivé';
+  }
+});
+
+/* ============================================================
+   CALCULS D'HORAIRES
+   ============================================================ */
+function nowMinutes(){
+  const d = new Date();
+  return d.getHours()*60 + d.getMinutes();
+}
+function hmToMin(hm){
+  if(!hm) return null;
+  const m = hm.match(/^(\d{1,2}):(\d{2})/);
+  if(!m) return null;
+  return (+m[1])*60 + (+m[2]);
+}
+function minToHM(min){
+  if(min===null || min===undefined || isNaN(min)) return null;
+  min = ((min%1440)+1440)%1440;
+  const h = Math.floor(min/60), m = Math.round(min%60);
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+}
+function fmtHM(min){
+  const v = minToHM(min);
+  return v ? v : null;
+}
+function fmtHrs(min){
+  if(min===null||min===undefined||isNaN(min)) return '—';
+  const h = Math.floor(min/60), m = Math.round(min%60);
+  return h+'h'+String(m).padStart(2,'0');
+}
+
+/* ============================================================
+   CALCUL DE CONFORMITÉ EN TEMPS RÉEL
+   ============================================================ */
+function computeShift(emp){
+  const ci = emp.clockIn;
+  const out = {
+    suggBreak: null, suggReturn: null, suggEnd: null,
+    contMinutes: 0, status: 'ok', statusLabel: 'En poste', breakOverMinutes: 0
+  };
+
+  if(ci===null || ci===undefined){
+    out.status = 'nodata';
+    out.statusLabel = 'Non pointé';
+    return out;
+  }
+
+  if(emp.clockOut !== null && emp.clockOut !== undefined){
+    out.status = 'done';
+    out.statusLabel = 'Shift terminé';
+    out.contMinutes = 0;
+    return out;
+  }
+
+  out.suggBreak  = ci + SEGMENT_MIN;
+  out.suggReturn = out.suggBreak + BREAK_MIN;
+
+  const hasReturn = emp.breakReturn !== null && emp.breakReturn !== undefined;
+  const hasBreakStart = emp.breakStart !== null && emp.breakStart !== undefined;
+
+  out.suggEnd = hasReturn
+    ? emp.breakReturn + SEGMENT_MIN
+    : ci + FULL_NOBREAK_MIN;
+
+  const t = nowMinutes();
+
+  if(hasBreakStart && !hasReturn){
+    /* ---- EN PAUSE ---- */
+    let elapsedBreak = t - emp.breakStart;
+    if(elapsedBreak < 0) elapsedBreak += 1440;
+    out.contMinutes = ci !== null ? (function(){
+      let seg = emp.breakStart - ci; if(seg<0) seg+=1440; return seg;
+    })() : 0;
+    out.breakOverMinutes = Math.max(0, elapsedBreak - BREAK_MIN);
+    if(elapsedBreak > BREAK_MIN){
+      out.status = 'breakover';
+      out.statusLabel = 'PAUSE DÉPASSÉE';
+    } else {
+      out.status = 'break';
+      out.statusLabel = 'En pause';
+    }
+    return out;
+  }
+
+  if(hasReturn){
+    /* ---- DEUXIÈME SEGMENT ---- */
+    let cont = t - emp.breakReturn;
+    if(cont < 0) cont += 1440;
+    out.contMinutes = cont;
+  } else {
+    /* ---- PREMIER SEGMENT ---- */
+    let cont = t - ci;
+    if(cont < 0) cont += 1440;
+    out.contMinutes = cont;
+  }
+
+  if(out.contMinutes >= CRIT_MIN){
+    out.status = 'crit';
+    out.statusLabel = 'MAX 4H50 — PAUSE IMMÉDIATE !';
+  } else if(out.contMinutes >= WARN_MIN){
+    out.status = 'warn';
+    out.statusLabel = 'Limite proche';
+  } else {
+    out.status = 'ok';
+    out.statusLabel = hasReturn ? 'En poste (post-pause)' : 'En poste';
+  }
+
+  return out;
+}
+
+/* ============================================================
+   AFFICHAGE DE DU TABLEAU
+   ============================================================ */
+function statusMeta(status){
+  return ({
+    ok:      {pill:'ok',   row:'st-ok'},
+    warn:    {pill:'warn', row:'st-warn'},
+    crit:    {pill:'crit', row:'st-crit'},
+    break:   {pill:'brk',  row:'st-break'},
+    breakover:{pill:'crit',row:'st-breakover'},
+    done:    {pill:'ok', row:'st-done'},
+    nodata:  {pill:'done', row:'st-done'}
+  })[status] || {pill:'done', row:''};
+}
+
+function render(){
+  const body = document.getElementById('empBody');
+  const empty = document.getElementById('emptyState');
+  const table = document.getElementById('empTable');
+  body.innerHTML = '';
+
+  if(employees.length===0){
+    table.style.display='none';
+    empty.style.display='block';
+    renderAlerts([]);
+    return;
+  }
+
+  const alerts = [];
+  const processed = employees.map(emp => ({ emp, calc: computeShift(emp) }));
+
+  const hasCriticals = processed.some(p => p.calc.status === 'crit' || p.calc.status === 'breakover');
+  if(hasCriticals && soundEnabled) {
+    triggerBeep();
+  }
+
+  const filtered = processed.filter(({calc}) => {
+    if(currentFilter === 'working') return calc.status === 'ok' || calc.status === 'warn';
+    if(currentFilter === 'break') return calc.status === 'break';
+    if(currentFilter === 'action') return calc.status === 'warn' || calc.status === 'crit' || calc.status === 'breakover';
+    return true; 
+  });
+
+  if(filtered.length === 0){
+    table.style.display='none';
+    empty.style.display='block';
+  } else {
+    table.style.display='table';
+    empty.style.display='none';
+  }
+
+  filtered.sort((a,b)=>{
+    const rank = s => ({crit:0, breakover:0, warn:1, break:2, ok:3, done:4, nodata:5}[s.status] ?? 6);
+    return rank(a.calc) - rank(b.calc) || (a.emp.clockIn??999) - (b.emp.clockIn??999);
+  }).forEach(({emp, calc}) => {
+    const meta = statusMeta(calc.status);
+    const tr = document.createElement('tr');
+    tr.className = meta.row;
+
+    if(calc.status==='crit' || calc.status==='breakover'){
+      alerts.push({emp, calc, kind: calc.status==='breakover' ? 'brk' : 'crit'});
+    } else if(calc.status==='warn'){
+      alerts.push({emp, calc, kind:'warn'});
+    }
+
+    // Actions rapides
+    let quickActions = '';
+    if(emp.clockOut !== null && emp.clockOut !== undefined){
+      quickActions = `<span class="dash">Terminé</span>`;
+    } else if(emp.breakStart === null || emp.breakStart === undefined){
+      quickActions = `
+        <button class="btn-action break-btn" onclick="quickBreak('${emp.badge}')">Départ Pause</button>
+        <button class="btn-action out-btn" onclick="quickClockOut('${emp.badge}')">Sortie</button>
+      `;
+    } else if(emp.breakReturn === null || emp.breakReturn === undefined){
+      quickActions = `
+        <button class="btn-action return-btn" onclick="quickReturn('${emp.badge}')">Retour Pause</button>
+        <button class="btn-action out-btn" onclick="quickClockOut('${emp.badge}')">Sortie</button>
+      `;
+    } else {
+      quickActions = `
+        <button class="btn-action out-btn" onclick="quickClockOut('${emp.badge}')">Sortie</button>
+      `;
+    }
+
+    tr.innerHTML = `
+      <td class="mono">${emp.badge || '—'}</td>
+      <td class="name">${emp.name || '<span class="dash">Sans nom</span>'}<span class="badgeno">${emp.id ? 'ID '+emp.id : ''}</span></td>
+      <td class="mono">${fmtHM(emp.clockIn) || '<span class="dash">—</span>'}</td>
+      <td class="mono">${fmtHM(calc.suggBreak) || '<span class="dash">—</span>'}</td>
+      <td class="mono">${fmtHM(emp.breakStart) || '<span class="dash">en attente</span>'}</td>
+      <td class="mono">${fmtHM(calc.suggReturn) || '<span class="dash">—</span>'}</td>
+      <td class="mono">${fmtHM(emp.breakReturn) || '<span class="dash">en attente</span>'}</td>
+      <td class="mono">${fmtHM(emp.clockOut) || '<span class="dash">—</span>'}</td>
+      <td class="mono conthrs">${calc.status==='break'||calc.status==='breakover' ? '<span class="dash">en pause</span>' : (calc.status==='done' ? '<span class="dash">finit</span>' : fmtHrs(calc.contMinutes))}</td>
+      <td><span class="pill ${meta.pill}"><span class="pilldot"></span>${calc.statusLabel}</span></td>
+      <td class="printhide"><div class="action-group">${quickActions}</div></td>
+      <td class="printhide"><button class="rowedit" data-badge="${emp.badge}" title="Modifier"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button></td>
+    `;
+    body.appendChild(tr);
+  });
+
+  document.querySelectorAll('.rowedit').forEach(b=>{
+    b.addEventListener('click', ()=> openModal(b.dataset.badge));
+  });
+
+  renderAlerts(alerts);
+}
+
+/* ============================================================
+   BOUTONS D'ACTION RAPIDE
+   ============================================================ */
+window.quickBreak = function(badge){
+  const idx = employees.findIndex(e => String(e.badge) === String(badge));
+  if(idx > -1){
+    employees[idx].breakStart = nowMinutes();
+    saveState();
+    render();
+  }
+};
+
+window.quickReturn = function(badge){
+  const idx = employees.findIndex(e => String(e.badge) === String(badge));
+  if(idx > -1){
+    employees[idx].breakReturn = nowMinutes();
+    saveState();
+    render();
+  }
+};
+
+window.quickClockOut = function(badge){
+  const idx = employees.findIndex(e => String(e.badge) === String(badge));
+  if(idx > -1){
+    employees[idx].clockOut = nowMinutes();
+    saveState();
+    render();
+  }
+};
+
+function renderAlerts(alerts){
+  const strip = document.getElementById('alertStrip');
+  strip.innerHTML='';
+  if(alerts.length===0){ strip.classList.remove('show'); return; }
+  strip.classList.add('show');
+
+  const crit = alerts.filter(a=>a.kind==='crit');
+  const brk  = alerts.filter(a=>a.kind==='brk');
+  const warn = alerts.filter(a=>a.kind==='warn');
+
+  if(crit.length){
+    const row=document.createElement('div');
+    row.className='alertrow crit';
+    row.innerHTML = `<span class="alertdot"></span> LIMITE 4H50 ATTEINTE — PAUSE IMMÉDIATE : ${crit.map(a=>a.emp.name||a.emp.badge).join(', ')}`;
+    strip.appendChild(row);
+  }
+  if(brk.length){
+    const row=document.createElement('div');
+    row.className='alertrow brk';
+    row.innerHTML = `<span class="alertdot"></span> Pause supérieure à 30 min : ${brk.map(a=>a.emp.name||a.emp.badge).join(', ')}`;
+    strip.appendChild(row);
+  }
+  if(warn.length){
+    const row=document.createElement('div');
+    row.className='alertrow warn';
+    row.innerHTML = `<span class="alertdot"></span> Limite 4h50 proche (≥4h30) : ${warn.map(a=>a.emp.name||a.emp.badge).join(', ')}`;
+    strip.appendChild(row);
+  }
+}
+
+/* ============================================================
+   FILTRES
+   ============================================================ */
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    currentFilter = this.dataset.filter;
+    render();
+  });
+});
+
+/* ============================================================
+   HORLOGE TEMPS RÉEL
+   ============================================================ */
+function tickClock(){
+  const d = new Date();
+  document.getElementById('clockNow').textContent =
+    String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');
+}
+setInterval(tickClock, 1000);
+tickClock();
+setInterval(render, 15000);
+
+/* ============================================================
+   MODALE — Saisie manuelle
+   ============================================================ */
+const modalBg = document.getElementById('modalBg');
+function openModal(badge){
+  editingBadge = badge || null;
+  const emp = badge ? employees.find(e=>String(e.badge)===String(badge)) : null;
+  document.getElementById('modalTitle').textContent = emp ? 'Modifier l\'employé' : 'Ajouter un employé';
+  document.getElementById('modalSub').textContent = emp
+    ? 'Corrigez les pointages extraits ou complétez les données manquantes.'
+    : 'Entrez les pointages manuellement si nécessaire.';
+  document.getElementById('fBadge').value = emp ? emp.badge : '';
+  document.getElementById('fId').value = emp ? (emp.id||'') : '';
+  document.getElementById('fName').value = emp ? (emp.name||'') : '';
+  document.getElementById('fClockIn').value = emp ? (minToHM(emp.clockIn)||'') : '';
+  document.getElementById('fBreakStart').value = emp ? (minToHM(emp.breakStart)||'') : '';
+  document.getElementById('fBreakReturn').value = emp ? (minToHM(emp.breakReturn)||'') : '';
+  document.getElementById('fClockOut').value = emp ? (minToHM(emp.clockOut)||'') : '';
+  document.getElementById('btnDelete').style.display = emp ? 'block' : 'none';
+  modalBg.classList.add('show');
+}
+function closeModal(){ modalBg.classList.remove('show'); editingBadge=null; }
+
+document.getElementById('btnAdd').addEventListener('click', ()=>openModal(null));
+document.getElementById('btnCancel').addEventListener('click', closeModal);
+modalBg.addEventListener('click', e=>{ if(e.target===modalBg) closeModal(); });
+
+document.getElementById('btnSave').addEventListener('click', ()=>{
+  const badge = document.getElementById('fBadge').value.trim() || ('TMP'+(nextTempId++));
+  const rec = {
+    badge,
+    id: document.getElementById('fId').value.trim(),
+    name: document.getElementById('fName').value.trim(),
+    clockIn: hmToMin(document.getElementById('fClockIn').value),
+    breakStart: hmToMin(document.getElementById('fBreakStart').value),
+    breakReturn: hmToMin(document.getElementById('fBreakReturn').value),
+    clockOut: hmToMin(document.getElementById('fClockOut').value),
+  };
+  const idx = employees.findIndex(e=>String(e.badge)===String(editingBadge));
+  if(editingBadge && idx>-1){
+    employees[idx] = Object.assign({}, employees[idx], rec, {badge: employees[idx].badge});
+  } else {
+    employees.push(rec);
+  }
+  saveState();
+  render();
+  closeModal();
+});
+document.getElementById('btnDelete').addEventListener('click', ()=>{
+  employees = employees.filter(e=>String(e.badge)!==String(editingBadge));
+  saveState();
+  render();
+  closeModal();
+});
+
+/* ============================================================
+   EFFACER LA LISTE
+   ============================================================ */
+document.getElementById('btnClear').addEventListener('click', ()=>{
+  if(employees.length === 0) return;
+  if(confirm('Êtes-vous sûr de vouloir vider tous les enregistrements ?')){
+    employees = [];
+    saveState();
+    clearLog();
+    render();
+  }
+});
+
+/* ============================================================
+   CHANGEMENT DE THÈME
+   ============================================================ */
+document.getElementById('btnTheme').addEventListener('click', ()=>{
+  const root = document.documentElement;
+  const cur = root.getAttribute('data-theme');
+  root.setAttribute('data-theme', cur==='dark' ? 'light' : 'dark');
+});
+
+/* ============================================================
+   IMPRESSION
+   ============================================================ */
+document.getElementById('btnPrint').addEventListener('click', ()=>{
+  document.getElementById('printTimestamp').textContent = new Date().toLocaleString('fr-FR');
+  window.print();
+});
+
+/* ============================================================
+   MOTEUR DE PARSING DES FICHIERS
+   ============================================================ */
+function log(msg, cls){
+  const el = document.getElementById('parseLog');
+  el.classList.add('show');
+  const d = document.createElement('div');
+  if(cls) d.className = cls;
+  d.textContent = msg;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+function clearLog(){
+  const el = document.getElementById('parseLog');
+  el.innerHTML=''; el.classList.remove('show');
+}
+
+const HEADER_RE = /(?:Badge|Matricule|Card)?\s*[:#]?\s*(\d{2,8})\b(?:[^\dA-Za-z]{1,4}(?:ID|Id)?\s*[:#]?\s*(\w{1,10}))?[^\wÀ-ÿ]{0,4}([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’\.\- ]{2,40})/;
+const HEADER_LINE_RE = /^\s*\d{2,8}\s+\S/;
+const TOKEN_RE = /(\d{1,2}:\d{2})\s*[\(\[]?\s*([GgPp])\)?\]?|([GgPp])\s*[\(\[]?\s*(\d{1,2}:\d{2})/g;
+
+function extractTokens(text){
+  const tokens = [];
+  let m;
+  TOKEN_RE.lastIndex = 0;
+  while((m = TOKEN_RE.exec(text)) !== null){
+    const time = m[1] || m[4];
+    const tag = (m[2] || m[3] || '').toUpperCase();
+    if(time && tag) tokens.push({time: hmToMin(time), tag});
+  }
+  return tokens;
+}
+
+function parseLogText(text){
+  clearLog();
+  if(!text || !text.trim()){
+    log('Aucun texte à analyser.', 'warn');
+    return;
+  }
+  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+
+  const blocks = [];
+  let current = null;
+  lines.forEach(line=>{
+    if(HEADER_LINE_RE.test(line)){
+      current = {headerLine: line, lines: [line]};
+      blocks.push(current);
+    } else if(current){
+      current.lines.push(line);
+    }
+  });
+
+  if(blocks.length===0){
+    log('Impossible de trouver des lignes d\'en-tête. Essayez de coller le texte brut ou d\'ajouter les employés manuellement.', 'warn');
+    return;
+  }
+
+  let added = 0, incomplete = 0;
+  blocks.forEach(b=>{
+    const full = b.lines.join(' ');
+    const hm = b.headerLine.match(HEADER_RE);
+    if(!hm){
+      log('Ligne ignorée — en-tête illisible: "'+b.headerLine.slice(0,60)+'"', 'warn');
+      return;
+    }
+    const badge = hm[1];
+    const id = hm[2] || '';
+    let name = (hm[3]||'').trim();
+    name = name.replace(/\s{2,}/g,' ');
+
+    const tokens = extractTokens(full);
+    let clockIn=null, breakStart=null, breakReturn=null, clockOut=null;
+    for(const t of tokens){
+      if(t.tag==='G' && clockIn===null){ clockIn = t.time; continue; }
+      if(t.tag==='P' && clockIn!==null && breakStart===null){ breakStart = t.time; continue; }
+      if(t.tag==='G' && breakStart!==null && breakReturn===null){ breakReturn = t.time; continue; }
+      if(t.tag==='G' && breakReturn!==null && clockOut===null){ clockOut = t.time; continue; }
+    }
+
+    const existingIdx = employees.findIndex(e=>String(e.badge)===String(badge));
+    const rec = {badge, id, name, clockIn, breakStart, breakReturn, clockOut};
+    if(existingIdx>-1) employees[existingIdx] = rec; else employees.push(rec);
+
+    added++;
+    if(clockIn===null){
+      incomplete++;
+      log('⚠ Badge '+badge+' ('+(name||'sans nom')+') — pointage d\'entrée introuvable. À compléter.', 'warn');
+    } else if(breakStart!==null && breakReturn===null){
+      log('Badge '+badge+' ('+name+') — importé. Actuellement en pause.', 'ok');
+    } else {
+      log('Badge '+badge+' ('+name+') — importé avec succès.', 'ok');
+    }
+  });
+
+  log('Analyse terminée — '+added+' employé(s) traité(s)'+(incomplete? ', '+incomplete+' nécessite(nt) une vérification.':'.'), added?'ok':'warn');
+  saveState();
+  render();
+}
+
+/* ============================================================
+   EXTRACTION PDF
+   ============================================================ */
+if(window['pdfjsLib']){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+async function extractPdfText(arrayBuffer){
+  const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+  let fullText = '';
+  for(let p=1; p<=pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const lineMap = new Map();
+    content.items.forEach(item=>{
+      const y = Math.round(item.transform[5]);
+      if(!lineMap.has(y)) lineMap.set(y, []);
+      lineMap.get(y).push(item);
+    });
+    const sortedY = Array.from(lineMap.keys()).sort((a,b)=>b-a);
+    sortedY.forEach(y=>{
+      const items = lineMap.get(y).sort((a,b)=>a.transform[4]-b.transform[4]);
+      fullText += items.map(i=>i.str).join(' ') + '\n';
+    });
+  }
+  return fullText;
+}
+
+async function handlePdfFile(file){
+  clearLog();
+  log('Lecture du fichier "'+file.name+'"…');
+  try{
+    const buf = await file.arrayBuffer();
+    const text = await extractPdfText(buf);
+    if(!text.trim()){
+      log('Le PDF ne contient pas de texte extrait. Il s\'agit peut-être d\'un document scanné.', 'warn');
+      return;
+    }
+    parseLogText(text);
+  }catch(err){
+    log('Erreur lors de la lecture du PDF: '+err.message, 'warn');
+  }
+}
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+dropzone.addEventListener('click', ()=>fileInput.click());
+fileInput.addEventListener('change', e=>{
+  if(e.target.files[0]) handlePdfFile(e.target.files[0]);
+});
+['dragenter','dragover'].forEach(evt=>{
+  dropzone.addEventListener(evt, e=>{ e.preventDefault(); dropzone.classList.add('drag'); });
+});
+['dragleave','drop'].forEach(evt=>{
+  dropzone.addEventListener(evt, e=>{ e.preventDefault(); dropzone.classList.remove('drag'); });
+});
+dropzone.addEventListener('drop', e=>{
+  const file = e.dataTransfer.files[0];
+  if(file && file.type==='application/pdf') handlePdfFile(file);
+  else if(file) log('Veuillez déposer un fichier au format PDF.', 'warn');
+});
+
+const pasteArea = document.getElementById('pasteArea');
+document.getElementById('btnTogglePaste').addEventListener('click', ()=>{
+  pasteArea.classList.toggle('show');
+});
+document.getElementById('btnParsePaste').addEventListener('click', ()=>{
+  parseLogText(document.getElementById('pasteText').value);
+});
+
+const SAMPLE_LOG = `
+Rapport des Transactions — Restaurant Agadir — 17/09/2026
+
+4021  0091  Karim Benali
+08:02 (G)  12:48 (P)  13:19 (G)
+
+4022  0092  Sanae El Amrani
+08:15 (G)  13:05 (P)
+
+4023  0093  Youssef Rami
+07:58 (G)
+
+4024  0094  Imane Chraibi
+08:00 (G)  12:50 (P)  13:22 (G)
+`;
+document.getElementById('btnSample').addEventListener('click', ()=>{
+  document.getElementById('pasteText').value = SAMPLE_LOG.trim();
+  parseLogText(SAMPLE_LOG);
+});
+
+/* ============================================================
+   INITIALISATION
+   ============================================================ */
+loadState();
+render();
+
+})();
+</script>
+</body>
+</html>
