@@ -343,7 +343,7 @@ input,textarea,select{font-family:inherit;}
   padding-top:10px;
   display:none;
 }
-.parselog.show{display:none;}
+.parselog.show{display:block;}
 .parselog div{padding:2px 0;}
 .parselog .ok{color:var(--status-ok-fg);}
 .parselog .warn{color:var(--status-warn-fg);}
@@ -559,6 +559,7 @@ tbody tr.st-done{opacity:0.55;}
           <th>Pause Eff.</th>
           <th>Retour Sugg.</th>
           <th>Retour Eff.</th>
+          <th>Sortie Sugg.</th>
           <th>Sortie</th>
           <th>Heures Cont.</th>
           <th>Statut</th>
@@ -884,8 +885,9 @@ function render(){
       <td class="mono">${fmtHM(emp.breakStart) || '<span class="dash">en attente</span>'}</td>
       <td class="mono">${fmtHM(calc.suggReturn) || '<span class="dash">—</span>'}</td>
       <td class="mono">${fmtHM(emp.breakReturn) || '<span class="dash">en attente</span>'}</td>
+      <td class="mono">${fmtHM(calc.suggEnd) || '<span class="dash">—</span>'}</td>
       <td class="mono">${fmtHM(emp.clockOut) || '<span class="dash">—</span>'}</td>
-      <td class="mono conthrs">${calc.status==='break'||calc.status==='breakover' ? '<span class="dash">en pause</span>' : (calc.status==='done' ? '<span class="dash">finit</span>' : fmtHrs(calc.contMinutes))}</td>
+      <td class="mono conthrs">${calc.status==='break'||calc.status==='breakover' ? '<span class="dash">en pause</span>' : (calc.status==='done' ? '<span class="dash">fini</span>' : fmtHrs(calc.contMinutes))}</td>
       <td><span class="pill ${meta.pill}"><span class="pilldot"></span>${calc.statusLabel}</span></td>
       <td class="printhide"><div class="action-group">${quickActions}</div></td>
       <td class="printhide"><button class="rowedit" data-badge="${emp.badge}" title="Modifier"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button></td>
@@ -1145,7 +1147,7 @@ function parseLogText(text){
       if(t.tag==='G' && clockIn===null){ clockIn = t.time; continue; }
       if(t.tag==='P' && clockIn!==null && breakStart===null){ breakStart = t.time; continue; }
       if(t.tag==='G' && breakStart!==null && breakReturn===null){ breakReturn = t.time; continue; }
-      if(t.tag==='G' && breakReturn!==null && clockOut===null){ clockOut = t.time; continue; }
+      if(t.tag==='G' && breakReturn!==null){ clockOut = t.time; continue; }
     }
 
     const existingIdx = employees.findIndex(e=>String(e.badge)===String(badge));
@@ -1225,7 +1227,7 @@ fileInput.addEventListener('change', e=>{
   dropzone.addEventListener(evt, e=>{ e.preventDefault(); dropzone.classList.remove('drag'); });
 });
 dropzone.addEventListener('drop', e=>{
-  const file = e.dataTransfer.files[0];
+  const file = e.dropTransfer ? e.dropTransfer.files[0] : (e.dataTransfer ? e.dataTransfer.files[0] : null);
   if(file && file.type==='application/pdf') handlePdfFile(file);
   else if(file) log('Veuillez déposer un fichier au format PDF.', 'warn');
 });
