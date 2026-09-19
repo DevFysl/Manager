@@ -446,6 +446,68 @@ tbody tr.st-break{border-left-color:var(--status-break-line);background:var(--st
 tbody tr.st-breakover{border-left-color:var(--status-crit-line);background:var(--status-crit-bg);}
 tbody tr.st-done{opacity:0.55;}
 
+/* ================= MOBILE CARDS ================= */
+/* Alternate view of the same data, shown on phones instead of the
+   wide table above. Hidden by default; the media query near the
+   bottom of this file swaps the two views at 720px. */
+.cards{display:none;}
+
+.empcard{
+  background:var(--panel-raised);
+  border:1px solid var(--line);
+  border-left:4px solid transparent;
+  border-radius:6px;
+  box-shadow:var(--shadow);
+  margin-bottom:12px;
+  overflow:hidden;
+}
+.empcard.st-ok{border-left-color:var(--status-ok-line);}
+.empcard.st-warn{border-left-color:var(--status-warn-line);background:var(--status-warn-bg);}
+.empcard.st-crit{border-left-color:var(--status-crit-line);background:var(--status-crit-bg);}
+.empcard.st-break{border-left-color:var(--status-break-line);background:var(--status-break-bg);}
+.empcard.st-breakover{border-left-color:var(--status-crit-line);background:var(--status-crit-bg);}
+.empcard.st-done{opacity:0.6;}
+
+.empcard-top{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
+  padding:14px 16px 12px;
+}
+.empcard-id .empcard-name{font-size:16px;font-weight:700;line-height:1.25;}
+.empcard-id .empcard-name .dash{font-weight:500;}
+.empcard-id .empcard-sub{
+  font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);margin-top:3px;
+}
+.empcard-top .pill{flex-shrink:0;}
+
+.empcard-times{padding:0 16px 4px;}
+.time-row{
+  display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  padding:8px 0;border-top:1px solid var(--line-soft);
+}
+.time-row:first-child{border-top:none;}
+.time-row .t-label{font-size:12.5px;color:var(--text-muted);font-weight:600;flex-shrink:0;}
+.time-row .t-value{
+  font-family:'IBM Plex Mono',monospace;font-size:13px;text-align:right;
+}
+.time-row .t-value .sep{
+  font-family:'Space Grotesk',sans-serif;color:var(--text-muted);font-size:11px;margin:0 5px;
+}
+
+.empcard-hours{display:flex;border-top:1px solid var(--line);}
+.empcard-hours .hcell{flex:1;padding:12px 16px;text-align:center;}
+.empcard-hours .hcell + .hcell{border-left:1px solid var(--line);}
+.empcard-hours .hcell .h-label{display:block;font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:3px;}
+.empcard-hours .hcell .h-value{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:700;}
+.empcard-hours .hcell.total .h-value{color:var(--accent-strong);}
+
+.empcard-foot{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:10px 16px;border-top:1px solid var(--line);background:var(--panel);
+}
+.empcard-foot .action-group{flex:1 1 auto;display:flex;gap:8px;flex-wrap:wrap;}
+.empcard-foot .btn-notes, .empcard-foot .btn-action{padding:8px 12px;font-size:12.5px;}
+.empcard-foot .rowedit{width:32px;height:32px;flex-shrink:0;}
+
 .pill{
   display:inline-flex;align-items:center;gap:6px;
   font-size:11.5px;font-weight:700;letter-spacing:0.02em;
@@ -473,6 +535,7 @@ tbody tr.st-done{opacity:0.55;}
 
 .emptystate{
   padding:60px 20px;text-align:center;color:var(--text-muted);font-size:13px;
+  background:var(--panel);border:1px solid var(--line);border-radius:4px;box-shadow:var(--shadow);
 }
 .emptystate b{display:block;color:var(--text);font-size:15px;font-weight:600;margin-bottom:6px;}
 
@@ -540,6 +603,13 @@ tbody tr.st-done{opacity:0.55;}
   .header{flex-direction:column;}
   .filterbar{flex-direction:column;align-items:stretch;}
   .search-box{min-width:100%;}
+
+  .tablewrap{display:none;}
+  .cards{display:block;}
+}
+
+@media print{
+  .cards{display:none !important;}
 }
 </style>
 </head>
@@ -640,10 +710,13 @@ tbody tr.st-done{opacity:0.55;}
       </thead>
       <tbody id="empBody"></tbody>
     </table>
-    <div class="emptystate" id="emptyState">
-      <b>Aucun quart de travail chargé</b>
-      Importez le rapport PDF de la pointeuse du jour, collez son texte ou ajoutez un employé manuellement.
-    </div>
+  </div>
+
+  <div class="cards" id="empCards"></div>
+
+  <div class="emptystate" id="emptyState">
+    <b>Aucun quart de travail chargé</b>
+    Importez le rapport PDF de la pointeuse du jour, collez son texte ou ajoutez un employé manuellement.
   </div>
 
   <div class="footnote printhide">
@@ -960,9 +1033,11 @@ function statusMeta(status){
 
 function render(){
   const body = document.getElementById('empBody');
+  const cardsWrap = document.getElementById('empCards');
   const empty = document.getElementById('emptyState');
   const table = document.getElementById('empTable');
   body.innerHTML = '';
+  cardsWrap.innerHTML = '';
 
   if(employees.length===0){
     table.style.display='none';
@@ -1059,6 +1134,55 @@ function render(){
       <td class="printhide"><button class="rowedit" data-badge="${emp.badge}" title="Modifier"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button></td>
     `;
     body.appendChild(tr);
+
+    const card = document.createElement('div');
+    card.className = 'empcard ' + meta.row;
+
+    const contHrsDisplay = calc.status==='break'||calc.status==='breakover' ? '<span class="dash">en pause</span>' : (calc.status==='done' ? '<span class="dash">fini</span>' : fmtHrs(calc.contMinutes));
+
+    card.innerHTML = `
+      <div class="empcard-top">
+        <div class="empcard-id">
+          <div class="empcard-name">${emp.name || '<span class="dash">Sans nom</span>'}</div>
+          <div class="empcard-sub">Badge ${emp.badge || '—'}${emp.id ? ' · ID '+emp.id : ''}</div>
+        </div>
+        <span class="pill ${meta.pill}"><span class="pilldot"></span>${calc.statusLabel}</span>
+      </div>
+      <div class="empcard-times">
+        <div class="time-row">
+          <span class="t-label">Entrée</span>
+          <span class="t-value">${fmtHM(emp.clockIn) || '<span class="dash">—</span>'}</span>
+        </div>
+        <div class="time-row">
+          <span class="t-label">Pause</span>
+          <span class="t-value">${fmtHM(calc.suggBreak) || '<span class="dash">—</span>'}<span class="sep">prévue ·</span>${fmtHM(emp.breakStart) || '<span class="dash">en attente</span>'}</span>
+        </div>
+        <div class="time-row">
+          <span class="t-label">Retour</span>
+          <span class="t-value">${fmtHM(calc.suggReturn) || '<span class="dash">—</span>'}<span class="sep">prévu ·</span>${fmtHM(emp.breakReturn) || '<span class="dash">en attente</span>'}</span>
+        </div>
+        <div class="time-row">
+          <span class="t-label">Sortie</span>
+          <span class="t-value">${fmtHM(calc.suggEnd) || '<span class="dash">—</span>'}<span class="sep">prévue ·</span>${fmtHM(emp.clockOut) || '<span class="dash">—</span>'}</span>
+        </div>
+      </div>
+      <div class="empcard-hours">
+        <div class="hcell">
+          <span class="h-label">En cours</span>
+          <span class="h-value">${contHrsDisplay}</span>
+        </div>
+        <div class="hcell total">
+          <span class="h-label">Total</span>
+          <span class="h-value">${fmtHrs(calc.totalMinutes)}</span>
+        </div>
+      </div>
+      <div class="empcard-foot printhide">
+        <button class="${noteBtnClass}" data-badge="${emp.badge}" onclick="openNotesModal('${emp.badge}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>${noteBtnText}</button>
+        <div class="action-group">${quickActions}</div>
+        <button class="rowedit" data-badge="${emp.badge}" title="Modifier"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>
+      </div>
+    `;
+    cardsWrap.appendChild(card);
   });
 
   document.querySelectorAll('.rowedit').forEach(b=>{
