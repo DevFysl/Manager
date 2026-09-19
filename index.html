@@ -710,15 +710,19 @@ tbody tr.st-done{opacity:0.55;}
    FIREBASE CONFIGURATION (REPLACE WITH YOUR KEYS)
    ============================================================ */
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyB_uy_D_AP4-zRyqfuzk8BADDAfgVQ4ZQw",
+  authDomain: "contractsocialmanager.firebaseapp.com",
+  projectId: "contractsocialmanager",
+  storageBucket: "contractsocialmanager.firebasestorage.app",
+  messagingSenderId: "887068908069",
+  appId: "1:887068908069:web:d5ffefd4a16b54c545fdcc"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+
+// Shared secret required by the Firestore security rules below.
+// Change this to your own value, and use the SAME value when you paste the rules into Firebase.
+const APP_SECRET = "EasyNet-99-Secret";
 
 /* ============================================================
    CONFIG — Règles de travail (en minutes)
@@ -748,7 +752,8 @@ function saveState(){
     // Push update to Firebase Cloud Database in real-time
     db.collection("timesheets").doc("current").set({
       employees: employees,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      secret: APP_SECRET
     }).catch(err => console.error("Cloud save error:", err));
   }catch(e){}
 }
