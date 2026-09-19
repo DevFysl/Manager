@@ -25,6 +25,10 @@ const WARN_MIN         = 4 * 60 + 30; // yellow threshold
 const CRIT_MIN         = 4 * 60 + 50; // red threshold (limit)
 const FULL_NOBREAK_MIN = 10 * 60 + 10; // if no break taken at all
 
+// While an employee is still over the limit, repeat the alert this often (minutes)
+// until they are put on break. Set to 0 to send each alert only once.
+const REPEAT_MIN = 3;
+
 // Timezone the punch times in Firestore are recorded in. Change this if your
 // shop is not in Morocco — it must match the phone/PC that enters the times.
 const TIMEZONE = 'Africa/Casablanca';
@@ -187,9 +191,15 @@ async function main() {
     const badgeKey = String(emp.badge || emp.id || emp.name || Math.random());
     seenBadges.add(badgeKey);
 
-    if (notifiedState[badgeKey] !== level) {
-      toSend.push({ badgeKey, prev: notifiedState[badgeKey], msg: buildMessage(emp, level, kind) });
-      notifiedState[badgeKey] = level;
+    // State is { level, at } — older runs stored just the level string, handled too.
+    const prev = notifiedState[badgeKey];
+    const prevLevel = (prev && typeof prev === 'object') ? prev.level : prev;
+    const prevAt = (prev && typeof prev === 'object') ? (prev.at || 0) : 0;
+    const repeatDue = level === 'crit' && REPEAT_MIN > 0 && (Date.now() - prevAt) >= REPEAT_MIN * 60000;
+
+    if (prevLevel !== level || repeatDue) {
+      toSend.push({ badgeKey, prev, msg: buildMessage(emp, level, kind) });
+      notifiedState[badgeKey] = { level, at: Date.now() };
     }
   });
 
