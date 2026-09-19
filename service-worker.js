@@ -18,3 +18,31 @@ self.addEventListener('fetch', function(e){
     })
   );
 });
+
+// Handles taps on the notification itself, or on one of its action
+// buttons ("Départ Pause", "Sortie", etc.). If the app is already open
+// in a tab, we hand the action off to it via postMessage so it applies
+// the change exactly as if you'd tapped the button inside the app. If
+// no tab is open, we open one with the action encoded in the URL so the
+// app can apply it as soon as it loads.
+self.addEventListener('notificationclick', function(event){
+  event.notification.close();
+  const action = event.action || '';
+  const data = event.notification.data || {};
+  const badge = data.badge || '';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList){
+      for(const client of clientList){
+        if('focus' in client){
+          client.postMessage({ type: 'notif-action', action: action, badge: badge });
+          return client.focus();
+        }
+      }
+      if(self.clients.openWindow){
+        const url = './index.html' + (action ? ('?notifAction=' + encodeURIComponent(action) + '&notifBadge=' + encodeURIComponent(badge)) : '');
+        return self.clients.openWindow(url);
+      }
+    })
+  );
+});

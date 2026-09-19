@@ -629,6 +629,16 @@ tbody tr.st-done{opacity:0.55;}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
           <span id="soundLabel">Son Désactivé</span>
         </button>
+        <button class="btn" id="btnPushAlerts" title="Recevoir une alerte sur le téléphone avant qu'un employé n'atteigne la limite">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <span id="pushAlertsLabel">Alertes Tél. Désactivées</span>
+        </button>
+        <select class="btn" id="ringtoneSelect" title="Choisir la sonnerie jouée à 4h50">
+          <option value="classic">Sonnerie : Classique</option>
+          <option value="alarm">Sonnerie : Alarme</option>
+          <option value="chime">Sonnerie : Douce</option>
+          <option value="siren">Sonnerie : Sirène</option>
+        </select>
         <button class="btn" id="btnTheme" title="Changer le thème">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
           Thème
@@ -885,6 +895,217 @@ document.getElementById('btnSound').addEventListener('click', function(){
     label.textContent = 'Son Désactivé';
   }
 });
+
+/* ============================================================
+   ALERTES TÉLÉPHONE (notification système + vibration + sonnerie)
+   ============================================================ */
+let pushAlertsEnabled = false;
+let notifiedState = {}; // badge -> dernier niveau notifié ('warn' | 'crit')
+let selectedRingtone = localStorage.getItem('csct_ringtone') || 'classic';
+
+const ringtoneSelectEl = document.getElementById('ringtoneSelect');
+ringtoneSelectEl.value = selectedRingtone;
+ringtoneSelectEl.addEventListener('change', function(){
+  selectedRingtone = this.value;
+  localStorage.setItem('csct_ringtone', selectedRingtone);
+  ringPhone(); // aperçu immédiat du son choisi
+});
+
+document.getElementById('btnPushAlerts').addEventListener('click', function(){
+  const label = document.getElementById('pushAlertsLabel');
+
+  if(!('Notification' in window)){
+    alert("Ce navigateur ne prend pas en charge les notifications.");
+    return;
+  }
+
+  if(!pushAlertsEnabled){
+    Notification.requestPermission().then(function(perm){
+      if(perm === 'granted'){
+        pushAlertsEnabled = true;
+        notifiedState = {};
+        document.getElementById('btnPushAlerts').classList.add('btn-active');
+        label.textContent = 'Alertes Tél. Activées';
+        sendPhoneAlert('Alertes activées', "Vous serez prévenu ici avant qu'un employé n'atteigne la limite.", false, [], {});
+      } else {
+        alert("Autorisation refusée. Activez les notifications pour ce site dans les réglages de votre téléphone pour utiliser cette fonction.");
+      }
+    });
+  } else {
+    pushAlertsEnabled = false;
+    document.getElementById('btnPushAlerts').classList.remove('btn-active');
+    label.textContent = 'Alertes Tél. Désactivées';
+  }
+});
+
+/* ---- Sonnerie (synthétisée, pas de fichier audio à héberger) ---- */
+function ensureAudioCtx2(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playNote(ctx, freq, startTime, duration){
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, startTime);
+  gain.gain.setValueAtTime(0.0001, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.18, startTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(startTime);
+  osc.stop(startTime + duration + 0.02);
+}
+
+function playSiren(ctx, startTime, duration){
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  gain.gain.setValueAtTime(0.15, startTime);
+  osc.frequency.setValueAtTime(500, startTime);
+  osc.frequency.linearRampToValueAtTime(1000, startTime + duration/2);
+  osc.frequency.linearRampToValueAtTime(500, startTime + duration);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(startTime);
+  osc.stop(startTime + duration);
+}
+
+const RINGTONE_PATTERNS = {
+  classic: function(ctx, t){ playNote(ctx, 880, t, 0.3); return 0.4; },
+  alarm:   function(ctx, t){ playNote(ctx,1046,t,0.15); playNote(ctx,1046,t+0.23,0.15); playNote(ctx,1046,t+0.46,0.15); return 0.7; },
+  chime:   function(ctx, t){ playNote(ctx,660,t,0.2); playNote(ctx,880,t+0.22,0.3); return 0.6; },
+  siren:   function(ctx, t){ playSiren(ctx, t, 0.8); return 0.9; }
+};
+
+function ringPhone(){
+  try{
+    const ctx = ensureAudioCtx2();
+    const pattern = RINGTONE_PATTERNS[selectedRingtone] || RINGTONE_PATTERNS.classic;
+    let t = ctx.currentTime;
+    for(let i=0;i<3;i++){
+      const dur = pattern(ctx, t);
+      t += dur + 0.35;
+    }
+  }catch(e){}
+}
+
+/* ---- Notification système avec boutons d'action ---- */
+function getQuickActionDefs(emp){
+  if(emp.clockOut !== null && emp.clockOut !== undefined){
+    return [];
+  } else if(emp.breakStart === null || emp.breakStart === undefined){
+    return [{action:'break', title:'Départ Pause'}, {action:'end', title:'Sortie'}];
+  } else if(emp.breakReturn === null || emp.breakReturn === undefined){
+    return [{action:'return', title:'Retour Pause'}, {action:'end', title:'Sortie'}];
+  } else {
+    return [{action:'end', title:'Sortie'}];
+  }
+}
+
+function sendPhoneAlert(title, body, urgent, actions, data){
+  if(!pushAlertsEnabled) return;
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const opts = {
+    body: body,
+    icon: '200.webp',
+    badge: '200.webp',
+    vibrate: urgent ? [300,150,300,150,300,150,300] : [200,100,200],
+    tag: 'csm-alert-' + (data && data.badge ? data.badge : title),
+    renotify: true,
+    requireInteraction: !!urgent,
+    actions: actions || [],
+    data: data || {}
+  };
+
+  if(navigator.serviceWorker && navigator.serviceWorker.ready){
+    navigator.serviceWorker.ready.then(function(reg){
+      reg.showNotification(title, opts);
+    }).catch(function(){
+      try{ new Notification(title, opts); }catch(e){}
+    });
+  } else {
+    try{ new Notification(title, opts); }catch(e){}
+  }
+}
+
+function checkPhoneAlerts(alerts){
+  if(!pushAlertsEnabled) return;
+  const seenBadges = new Set();
+
+  alerts.forEach(function(a){
+    const emp = a.emp, kind = a.kind;
+    const badgeKey = String(emp.badge || emp.id || emp.name || Math.random());
+    seenBadges.add(badgeKey);
+    const level = (kind === 'crit' || kind === 'brk') ? 'crit' : 'warn';
+
+    if(notifiedState[badgeKey] !== level){
+      notifiedState[badgeKey] = level;
+      const name = emp.name || 'Employé';
+      const badgeLabel = emp.badge || '—';
+      const actionDefs = getQuickActionDefs(emp);
+      const data = { badge: String(emp.badge || '') };
+
+      if(level === 'warn'){
+        sendPhoneAlert(
+          name + ' — Badge ' + badgeLabel,
+          'Approche des 4h50 sans pause (4h30 atteintes).',
+          false, actionDefs, data
+        );
+      } else if(kind === 'brk'){
+        sendPhoneAlert(
+          name + ' — Badge ' + badgeLabel,
+          'Pause dépassée (plus de 30 min).',
+          true, actionDefs, data
+        );
+        ringPhone();
+      } else {
+        sendPhoneAlert(
+          name + ' — Badge ' + badgeLabel,
+          'Limite de 4h50 atteinte — pause immédiate requise.',
+          true, actionDefs, data
+        );
+        ringPhone();
+      }
+    }
+  });
+
+  // Un employé qui n'est plus en alerte peut être notifié de nouveau plus tard
+  Object.keys(notifiedState).forEach(function(b){
+    if(!seenBadges.has(b)) delete notifiedState[b];
+  });
+}
+
+/* ---- Réception des clics sur les boutons de la notification ---- */
+function applyNotifAction(action, badge){
+  if(!badge) return;
+  if(action === 'break') window.quickBreak(badge);
+  else if(action === 'return') window.quickReturn(badge);
+  else if(action === 'end') window.quickClockOut(badge);
+}
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message', function(e){
+    if(e.data && e.data.type === 'notif-action'){
+      applyNotifAction(e.data.action, e.data.badge);
+    }
+  });
+}
+
+// Repli : si la notification a dû rouvrir l'appli (aucun onglet ouvert),
+// l'action arrive en paramètres d'URL au lieu d'un message direct.
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  const na = params.get('notifAction');
+  const nb = params.get('notifBadge');
+  if(na && nb){
+    setTimeout(function(){ applyNotifAction(na, nb); }, 1500);
+    params.delete('notifAction'); params.delete('notifBadge');
+    const qs = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (qs ? ('?'+qs) : ''));
+  }
+})();
 
 /* ============================================================
    CALCULS D'HORAIRES
@@ -1190,6 +1411,7 @@ function render(){
   });
 
   renderAlerts(alerts);
+  checkPhoneAlerts(alerts);
 }
 
 /* ============================================================
