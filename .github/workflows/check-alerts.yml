@@ -5,7 +5,16 @@ on:
     # Every 3 minutes. GitHub's scheduler can slip a few minutes under load —
     # fine here since the thresholds have 20+ minutes of slack.
     - cron: '*/3 * * * *'
-  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab, for testing
+  workflow_dispatch:
+    inputs:
+      test:
+        description: 'Send a test notification only'
+        type: boolean
+        default: false
+
+concurrency:
+  group: check-alerts
+  cancel-in-progress: false
 
 jobs:
   check-alerts:
@@ -26,3 +35,4 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NTFY_TEST: ${{ github.event.inputs.test }}
