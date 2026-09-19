@@ -698,9 +698,27 @@ tbody tr.st-done{opacity:0.55;}
   </div>
 </div>
 
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
 <script>
 (function(){
+
+/* ============================================================
+   FIREBASE CONFIGURATION (REPLACE WITH YOUR KEYS)
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 /* ============================================================
    CONFIG — Règles de travail (en minutes)
@@ -712,7 +730,7 @@ const CRIT_MIN        = 4*60 + 50;  // Seuil rouge (limite)
 const FULL_NOBREAK_MIN= 10*60 + 10; // Si aucune pause n'est prise
 
 /* ============================================================
-   ÉTAT DE L'APPLICATION
+   ÉTAT DE L'APPLICATION & CLOUD SYNC
    ============================================================ */
 let employees = []; 
 let nextTempId = 1;
@@ -723,17 +741,33 @@ let searchQuery = '';
 let soundEnabled = false;
 let audioCtx = null;
 
-/* ---- Sauvegarde locale ---- */
+/* ---- Sauvegarde locale et Cloud Firestore ---- */
 function saveState(){
   try{
     localStorage.setItem('csct_employees', JSON.stringify(employees));
+    // Push update to Firebase Cloud Database in real-time
+    db.collection("timesheets").doc("current").set({
+      employees: employees,
+      updatedAt: new Date().toISOString()
+    }).catch(err => console.error("Cloud save error:", err));
   }catch(e){}
 }
+
 function loadState(){
   try{
     const raw = localStorage.getItem('csct_employees');
     if(raw){ employees = JSON.parse(raw) || []; }
   }catch(e){ employees = []; }
+
+  // Listen to real-time changes from Firestore (so phone updates automatically when office PC updates)
+  db.collection("timesheets").doc("current").onSnapshot((doc) => {
+    if(doc.exists && doc.data().employees){
+      employees = doc.data().employees;
+      render();
+    }
+  }, (err) => {
+    console.log("Cloud sync error:", err);
+  });
 }
 
 /* ============================================================
@@ -830,7 +864,6 @@ function computeShift(emp){
 
   const t = nowMinutes();
 
-  // Calcul du temps total travaillé cumulé (avant pause + après pause)
   let preBreakMinutes = 0;
   let postBreakMinutes = 0;
 
@@ -1352,7 +1385,7 @@ async function extractPdfText(arrayBuffer){
       lineMap.get(y).push(item);
     });
     const sortedY = Array.from(lineMap.keys()).sort((a,b)=>b-a);
-    sortedY.exports = sortedY.forEach(y=>{
+    sortedY.forEach(y=>{
       const items = lineMap.get(y).sort((a,b)=>a.transform[4]-b.transform[4]);
       fullText += items.map(i=>i.str).join(' ') + '\n';
     });
@@ -1389,7 +1422,9 @@ fileInput.addEventListener('change', e=>{
   dropzone.addEventListener(evt, e=>{ e.preventDefault(); dropzone.classList.remove('drag'); });
 });
 dropzone.addEventListener('drop', e=>{
-  const file = e.dropTransfer ? e.dropTransfer.files[0] : (e.dataTransfer ? e.dataTransfer.files[0] : null);
+  e.preventDefault();
+  dropzone.classList.remove('drag');
+  const file = e.dataTransfer && e.dataTransfer.files[0] ? e.dataTransfer.files[0] : null;
   if(file && file.type==='application/pdf') handlePdfFile(file);
   else if(file) log('Veuillez déposer un fichier au format PDF.', 'warn');
 });
