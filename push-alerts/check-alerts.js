@@ -3,20 +3,18 @@
  * ----------------
  * Runs on a schedule (via GitHub Actions — see ../.github/workflows/check-alerts.yml).
  * Reads the live timesheet from Firestore, works out who has crossed a threshold
- * (the exact same rules as computeShift() in index.html), and sends a real Web
- * Push notification to every subscribed phone. This is what makes alerts arrive
- * even when the app is closed and the screen is locked — index.html's own
- * checkPhoneAlerts() only runs while a tab is open, so it can't do this alone.
+ * (the exact same rules as computeShift() in index.html), and sends an alert to
+ * your phone via ntfy (https://ntfy.sh) — a free push service with its own app.
+ * This is what makes alerts arrive even when the app is closed and the screen
+ * is locked, and it doesn't depend on the browser's own Web Push support at
+ * all, which is what was failing before.
  *
  * Required environment variables (set as GitHub Actions secrets — see README.md):
  *   FIREBASE_SERVICE_ACCOUNT  Full JSON of a Firebase service account key (one line)
- *   VAPID_PUBLIC_KEY          Same value as VAPID_PUBLIC_KEY in index.html
- *   VAPID_PRIVATE_KEY         Kept secret, never goes in index.html
- *   VAPID_CONTACT_EMAIL       A contact email, e.g. mailto:you@example.com
+ *   NTFY_TOPIC                Your private, unguessable ntfy topic name
  */
 
 const admin = require('firebase-admin');
-const webpush = require('web-push');
 
 /* ============================================================
    CONFIG — must match the constants in index.html
@@ -38,8 +36,8 @@ if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
   console.error('Missing FIREBASE_SERVICE_ACCOUNT env var.');
   process.exit(1);
 }
-if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
-  console.error('Missing VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY env vars.');
+if (!process.env.NTFY_TOPIC) {
+  console.error('Missing NTFY_TOPIC env var.');
   process.exit(1);
 }
 
@@ -47,11 +45,7 @@ const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
-webpush.setVapidDetails(
-  process.env.VAPID_CONTACT_EMAIL || 'mailto:admin@example.com',
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
+const NTFY_URL = 'https://ntfy.sh/' + process.env.NTFY_TOPIC;
 
 /* ============================================================
    TIME HELPERS
@@ -110,25 +104,12 @@ function computeShift(emp, t) {
   return out;
 }
 
-function getQuickActionDefs(emp) {
-  if (emp.clockOut !== null && emp.clockOut !== undefined) return [];
-  if (emp.breakStart === null || emp.breakStart === undefined) {
-    return [{ action: 'break', title: 'Départ Pause' }, { action: 'end', title: 'Sortie' }];
-  }
-  if (emp.breakReturn === null || emp.breakReturn === undefined) {
-    return [{ action: 'return', title: 'Retour Pause' }, { action: 'end', title: 'Sortie' }];
-  }
-  return [{ action: 'end', title: 'Sortie' }];
-}
-
 /* ============================================================
-   BUILD THE NOTIFICATION PAYLOAD (mirrors sendPhoneAlert() in index.html)
+   BUILD THE ntfy MESSAGE
    ============================================================ */
-function buildPayload(emp, level, kind) {
+function buildMessage(emp, level, kind) {
   const name = emp.name || 'Employé';
   const badgeLabel = emp.badge || '—';
-  const actions = getQuickActionDefs(emp);
-  const data = { badge: String(emp.badge || '') };
   const urgent = level === 'crit';
 
   let body;
@@ -138,18 +119,26 @@ function buildPayload(emp, level, kind) {
 
   return {
     title: name + ' — Badge ' + badgeLabel,
-    options: {
-      body: body,
-      icon: '200.webp',
-      badge: '200.webp',
-      vibrate: urgent ? [300, 150, 300, 150, 300, 150, 300] : [200, 100, 200],
-      tag: 'csm-alert-' + badgeLabel,
-      renotify: true,
-      requireInteraction: !!urgent,
-      actions: actions,
-      data: data
-    }
+    body: body,
+    priority: urgent ? 'urgent' : 'high', // "urgent" rings/vibrates and can bypass silent mode in the ntfy app
+    tags: urgent ? ['rotating_light'] : ['warning']
   };
+}
+
+async function sendNtfy(msg) {
+  const res = await fetch(NTFY_URL, {
+    method: 'POST',
+    headers: {
+      'Title': msg.title,
+      'Priority': msg.priority,
+      'Tags': msg.tags.join(','),
+      'Content-Type': 'text/plain; charset=utf-8'
+    },
+    body: msg.body
+  });
+  if (!res.ok) {
+    throw new Error('ntfy responded ' + res.status + ': ' + (await res.text()));
+  }
 }
 
 /* ============================================================
@@ -165,7 +154,7 @@ async function main() {
   const notifiedState = (stateDoc.exists && stateDoc.data().state) || {};
   const seenBadges = new Set();
 
-  const toSend = []; // [{payload}]
+  const toSend = [];
 
   employees.forEach(emp => {
     const calc = computeShift(emp, t);
@@ -186,7 +175,7 @@ async function main() {
 
     if (notifiedState[badgeKey] !== level) {
       notifiedState[badgeKey] = level;
-      toSend.push(buildPayload(emp, level, kind));
+      toSend.push(buildMessage(emp, level, kind));
     }
   });
 
@@ -197,22 +186,12 @@ async function main() {
 
   console.log(toSend.length + ' new alert(s) to send this run.');
 
-  if (toSend.length > 0) {
-    const subsSnap = await db.collection('pushSubscriptions').get();
-    const subs = subsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-    for (const payload of toSend) {
-      for (const subDoc of subs) {
-        try {
-          await webpush.sendNotification(subDoc.subscription, JSON.stringify(payload));
-        } catch (err) {
-          console.error('Push failed for device ' + subDoc.id + ':', err.statusCode || err.message);
-          if (err.statusCode === 404 || err.statusCode === 410) {
-            // Subscription is dead (uninstalled, permissions revoked, etc.) — clean it up.
-            await db.collection('pushSubscriptions').doc(subDoc.id).delete().catch(() => {});
-          }
-        }
-      }
+  for (const msg of toSend) {
+    try {
+      await sendNtfy(msg);
+      console.log('Sent: ' + msg.title);
+    } catch (err) {
+      console.error('ntfy send failed:', err.message);
     }
   }
 
@@ -228,3 +207,4 @@ main().catch(err => {
   console.error('Fatal error:', err);
   process.exit(1);
 });
+
