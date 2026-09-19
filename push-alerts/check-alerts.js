@@ -45,7 +45,6 @@ const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
-const NTFY_URL = 'https://ntfy.sh/' + process.env.NTFY_TOPIC;
 
 /* ============================================================
    TIME HELPERS
@@ -120,21 +119,24 @@ function buildMessage(emp, level, kind) {
   return {
     title: name + ' — Badge ' + badgeLabel,
     body: body,
-    priority: urgent ? 'urgent' : 'high', // "urgent" rings/vibrates and can bypass silent mode in the ntfy app
+    priority: urgent ? 5 : 4, // 5 = urgent, 4 = high
     tags: urgent ? ['rotating_light'] : ['warning']
   };
 }
 
+// NOTE: we publish as JSON (not HTTP headers) because headers can't carry
+// characters like "—" or Arabic/accented names — Node throws and nothing is sent.
 async function sendNtfy(msg) {
-  const res = await fetch(NTFY_URL, {
+  const res = await fetch('https://ntfy.sh', {
     method: 'POST',
-    headers: {
-      'Title': msg.title,
-      'Priority': msg.priority,
-      'Tags': msg.tags.join(','),
-      'Content-Type': 'text/plain; charset=utf-8'
-    },
-    body: msg.body
+    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({
+      topic: process.env.NTFY_TOPIC,
+      title: msg.title,
+      message: msg.body,
+      priority: msg.priority,
+      tags: msg.tags
+    })
   });
   if (!res.ok) {
     throw new Error('ntfy responded ' + res.status + ': ' + (await res.text()));
@@ -145,6 +147,18 @@ async function sendNtfy(msg) {
    MAIN
    ============================================================ */
 async function main() {
+  // Manual test: Actions -> Run workflow -> tick "test". Sends one message and stops.
+  if (process.env.NTFY_TEST === 'true') {
+    await sendNtfy({
+      title: 'Test — CSM alerts',
+      body: 'Si vous voyez ceci, ntfy fonctionne.',
+      priority: 5,
+      tags: ['rotating_light']
+    });
+    console.log('Test notification sent.');
+    return;
+  }
+
   const t = nowMinutes();
 
   const timesheetDoc = await db.collection('timesheets').doc('current').get();
@@ -174,8 +188,8 @@ async function main() {
     seenBadges.add(badgeKey);
 
     if (notifiedState[badgeKey] !== level) {
+      toSend.push({ badgeKey, prev: notifiedState[badgeKey], msg: buildMessage(emp, level, kind) });
       notifiedState[badgeKey] = level;
-      toSend.push(buildMessage(emp, level, kind));
     }
   });
 
@@ -186,12 +200,17 @@ async function main() {
 
   console.log(toSend.length + ' new alert(s) to send this run.');
 
-  for (const msg of toSend) {
+  let failures = 0;
+  for (const item of toSend) {
     try {
-      await sendNtfy(msg);
-      console.log('Sent: ' + msg.title);
+      await sendNtfy(item.msg);
+      console.log('Sent: ' + item.msg.title);
     } catch (err) {
+      failures++;
       console.error('ntfy send failed:', err.message);
+      // Un-mark it so the next run (3 min later) tries again
+      if (item.prev === undefined) delete notifiedState[item.badgeKey];
+      else notifiedState[item.badgeKey] = item.prev;
     }
   }
 
@@ -201,6 +220,7 @@ async function main() {
   });
 
   console.log('Done.');
+  if (failures > 0) process.exit(1); // makes the Actions run show red
 }
 
 main().catch(err => {
