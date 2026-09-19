@@ -809,6 +809,11 @@ const db = firebase.firestore();
 // Change this to your own value, and use the SAME value when you paste the rules into Firebase.
 const APP_SECRET = "EasyNet-99-Secret";
 
+// Public half of the VAPID key pair used for real Web Push (see push-alerts/README.md).
+// Safe to leave visible in client code — it's the PUBLIC key. The private key stays
+// only in the GitHub Actions secret, never in this file.
+const VAPID_PUBLIC_KEY = "BIM16c4X9es9VcfFBg7Zr0jYe_zoxmmJD4JfXSeMrShjzq-oSkVwxJRoYXruq2w7Tde9d9zNPxJQGDzZ2hO05n8";
+
 /* ============================================================
    CONFIG — Règles de travail (en minutes)
    ============================================================ */
@@ -927,6 +932,9 @@ document.getElementById('btnPushAlerts').addEventListener('click', function(){
         document.getElementById('btnPushAlerts').classList.add('btn-active');
         label.textContent = 'Alertes Tél. Activées';
         sendPhoneAlert('Alertes activées', "Vous serez prévenu ici avant qu'un employé n'atteigne la limite.", false, [], {});
+        // Also register this device for real push, so alerts still arrive
+        // when the app is closed or the screen is locked.
+        subscribeToPush();
       } else {
         alert("Autorisation refusée. Activez les notifications pour ce site dans les réglages de votre téléphone pour utiliser cette fonction.");
       }
@@ -935,8 +943,68 @@ document.getElementById('btnPushAlerts').addEventListener('click', function(){
     pushAlertsEnabled = false;
     document.getElementById('btnPushAlerts').classList.remove('btn-active');
     label.textContent = 'Alertes Tél. Désactivées';
+    unsubscribeFromPush();
   }
 });
+
+/* ---- Abonnement Web Push réel (fonctionne écran verrouillé / app fermée) ---- */
+function getDeviceId(){
+  let id = localStorage.getItem('csct_device_id');
+  if(!id){
+    id = (crypto.randomUUID ? crypto.randomUUID() : ('dev-' + Date.now() + '-' + Math.random().toString(16).slice(2)));
+    localStorage.setItem('csct_device_id', id);
+  }
+  return id;
+}
+
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for(let i = 0; i < rawData.length; ++i){
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+async function subscribeToPush(){
+  try{
+    if(!('serviceWorker' in navigator) || !('PushManager' in window)){
+      console.log('Push non supporté sur ce navigateur.');
+      return;
+    }
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub){
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    const deviceId = getDeviceId();
+    await db.collection('pushSubscriptions').doc(deviceId).set({
+      subscription: sub.toJSON(),
+      secret: APP_SECRET,
+      updatedAt: new Date().toISOString()
+    });
+  }catch(err){
+    console.error('Erreur abonnement push:', err);
+  }
+}
+
+async function unsubscribeFromPush(){
+  try{
+    if(!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if(sub) await sub.unsubscribe();
+    const deviceId = getDeviceId();
+    await db.collection('pushSubscriptions').doc(deviceId).delete().catch(()=>{});
+  }catch(err){
+    console.error('Erreur désabonnement push:', err);
+  }
+}
 
 /* ---- Sonnerie (synthétisée, pas de fichier audio à héberger) ---- */
 function ensureAudioCtx2(){

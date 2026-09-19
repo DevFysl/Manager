@@ -1,0 +1,14 @@
+{
+  "name": "csm-push-alerts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scheduled job that sends real Web Push alerts for Contract Social Manager",
+  "main": "check-alerts.js",
+  "scripts": {
+    "start": "node check-alerts.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "web-push": "^3.6.7"
+  }
+}

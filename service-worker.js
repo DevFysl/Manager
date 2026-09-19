@@ -11,6 +11,24 @@ self.addEventListener('activate', function(e){
   self.clients.claim();
 });
 
+// Handles real Web Push messages sent from the backend (GitHub Actions job),
+// which arrive here even if the app is fully closed and the phone is locked.
+// This is what actually rings/shows the alert in that case — the in-app
+// alert code only runs while a tab is open, so it can't be relied on alone.
+self.addEventListener('push', function(event){
+  let payload = {};
+  try{
+    payload = event.data ? event.data.json() : {};
+  }catch(e){
+    payload = { title: 'Contract Social Manager', options: { body: event.data ? event.data.text() : '' } };
+  }
+
+  const title = payload.title || 'Contract Social Manager';
+  const options = payload.options || {};
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
 self.addEventListener('fetch', function(e){
   e.respondWith(
     fetch(e.request).catch(function(){
