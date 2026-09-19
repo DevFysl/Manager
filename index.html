@@ -1,6 +1,22 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+  <script>
+  (function() {
+    const CORRECT_PASSWORD = "99"; // Change this to your desired password
+
+    // Check if the user has already entered the password in this tab session
+    if (sessionStorage.getItem("authenticated") !== "true") {
+      let userPass = prompt("Please enter the password to access this application:");
+      
+      if (userPass === CORRECT_PASSWORD) {
+        sessionStorage.setItem("authenticated", "true");
+      } else {
+        alert("Incorrect password. Contact Fayssal Aissaoui.");
+        document.write("<h1 style='text-align:center; margin-top:50px;'>Incorrect Password, Contact Fayssal.</h1>");
+        window.stop();
+      }
+    }
   })();
 </script>
 <meta charset="UTF-8">
