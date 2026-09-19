@@ -1,0 +1,30 @@
+name: Check phone alerts
+
+on:
+  schedule:
+    # Every 3 minutes. GitHub's scheduler can slip a few minutes under load —
+    # fine here since the thresholds have 20+ minutes of slack.
+    - cron: '*/3 * * * *'
+  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab, for testing
+
+jobs:
+  check-alerts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: push-alerts
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm install
+
+      - run: node check-alerts.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_CONTACT_EMAIL: ${{ secrets.VAPID_CONTACT_EMAIL }}
