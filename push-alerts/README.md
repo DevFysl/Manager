@@ -19,8 +19,7 @@ name can subscribe to it, so use a long, random, unguessable one. Use this
 one (already generated for you), or make your own:
 
 ```
-3dd858f8e4b05eeb3d90c453
-```
+YOUR-TOPIC```
 
 Since your GitHub repo is **public**, this name must only ever live in a
 GitHub secret (step 4) — never commit it into `index.html` or any file in
