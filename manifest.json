@@ -1,7 +1,7 @@
 {
   "name": "Contract Social Manager",
   "short_name": "CSM EasyNet",
-  "start_url": "./Index.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#E4E7E1",
