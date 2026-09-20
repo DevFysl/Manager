@@ -170,7 +170,9 @@ button{font-family:inherit;cursor:pointer;}
 
 /* ================= SEMAINE ================= */
 .week{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:16px;}
-.week h2{margin:0 0 12px;font-size:15px;font-weight:700;}
+.week-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.week h2{margin:0;font-size:15px;font-weight:700;}
+.print-head,.pr{display:none;}
 .daytabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;}
 .daytab{
   flex:1 0 auto;min-width:66px;border:1px solid var(--line);background:var(--panel-raised);color:var(--text);
@@ -195,6 +197,25 @@ table.plan{width:100%;border-collapse:collapse;font-size:14px;}
 .spill.warn{background:var(--status-warn-bg);color:var(--status-warn-fg);border-color:var(--status-warn-line);}
 .spill.crit{background:var(--status-crit-bg);color:var(--status-crit-fg);border-color:var(--status-crit-line);}
 .spill.brk{background:var(--status-break-bg);color:var(--status-break-fg);border-color:var(--status-break-line);}
+
+@media print{
+  @page{margin:14mm;}
+  body{background:#fff;color:#000;}
+  .header,.plansub,.expected,.week-head,.daytabs,.daysum,.login-overlay,.scr{display:none !important;}
+  .app{max-width:none;padding:0;}
+  .week{background:none;border:0;padding:0;}
+  .print-head{display:block;margin-bottom:12px;}
+  .print-head h1{font-size:20px;margin:0 0 4px;color:#000;}
+  .print-head p{margin:0;font-size:12px;color:#333;}
+  .tablewrap{overflow:visible;}
+  table.plan{font-size:13px;}
+  .plan th{color:#000;border-bottom:2px solid #000;}
+  .plan td{border-bottom:1px solid #888;padding:7px 8px;color:#000;}
+  .plan tr.grp td{background:#eee !important;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .plan tr{break-inside:avoid;}
+  .pr{display:table-cell !important;width:70px;text-align:center;}
+  .chk{display:inline-block;width:15px;height:15px;border:1.5px solid #000;vertical-align:middle;}
+}
 
 @media (max-width:640px){
   .app{padding:14px 12px 50px;}
@@ -262,7 +283,11 @@ body.auth-locked .login-overlay{display:flex;}
   </section>
 
   <section class="week" aria-labelledby="weekTitle">
-    <h2 id="weekTitle">Planning de la semaine</h2>
+    <div class="week-head">
+      <h2 id="weekTitle">Planning de la semaine</h2>
+      <button class="btn" id="btnPrint" type="button">Imprimer ce jour</button>
+    </div>
+    <div class="print-head" id="printHead"><h1 id="printTitle"></h1><p id="printSub"></p></div>
     <div class="daytabs" id="dayTabs" role="tablist" aria-label="Jour du planning"></div>
     <div class="daysum" id="daySum" aria-live="polite"></div>
     <div class="tablewrap"><div id="dayList"></div></div>
@@ -605,12 +630,23 @@ function statusFor(emp, sh, nowMin){
   return {cls:'crit', text:'Non pointé'};
 }
 
+let printData = null;
+function updatePrintHead(){
+  if(!printData) return;
+  const n = new Date();
+  $('printTitle').textContent = printData.title;
+  $('printSub').textContent = printData.count + (printData.count > 1 ? ' employés prévus' : ' employé prévu') +
+    ' — planning du ' + printData.range + ' — imprimé le ' + pad(n.getDate()) + '/' + pad(n.getMonth()+1) + '/' + n.getFullYear() +
+    ' à ' + pad(n.getHours()) + ':' + pad(n.getMinutes());
+}
+
 function renderWeek(){
   const tabs = $('dayTabs'), list = $('dayList'), sum = $('daySum');
   list.textContent = '';
   if(!schedule){
     tabs.textContent = ''; tabs._sig = null;
     sum.textContent = 'Aucun planning chargé.';
+    $('btnPrint').disabled = true;
     return;
   }
   const ti = todayIdx();
@@ -652,11 +688,22 @@ function renderWeek(){
   sum.appendChild(document.createTextNode(' : ' + rows.length + (rows.length > 1 ? ' employés prévus' : ' employé prévu') +
     (isToday && rows.length ? ', dont ' + arrived + (arrived > 1 ? ' déjà arrivés' : ' déjà arrivé') : '')));
 
+  $('btnPrint').disabled = !rows.length;
+  printData = {
+    title: 'Employés attendus — ' + DAY_NAMES[selDay] + ' ' + d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear(),
+    count: rows.length,
+    range: fmtShort(schedule.start) + ' au ' + fmtShort(schedule.end)
+  };
+  updatePrintHead();
+
   if(!rows.length){ list.appendChild(el('div','exp-empty','Personne n\'est prévu ce jour-là.')); return; }
 
   const table = el('table','plan');
   const thead = el('thead'), hr = el('tr');
-  ['Début','Fin','Employé'].concat(isToday ? ['Statut'] : []).forEach(function(h){ hr.appendChild(el('th','',h)); });
+  hr.appendChild(el('th','','Début'));
+  hr.appendChild(el('th','','Employé'));
+  if(isToday) hr.appendChild(el('th','scr','Statut'));
+  hr.appendChild(el('th','pr','Arrivé'));
   thead.appendChild(hr); table.appendChild(thead);
   const tbody = el('tbody');
   const groups = [['Matin', 0, 12*60], ['Après-midi', 12*60, 18*60], ['Soir', 18*60, 24*60]];
@@ -670,21 +717,24 @@ function renderWeek(){
     gr.forEach(function(r){
       const tr = el('tr');
       tr.appendChild(el('td','t', r.sh.s));
-      const end = el('td','t', r.sh.e || '—');
-      if(r.sh.o) end.appendChild(el('span','nextday','lendemain'));
-      tr.appendChild(end);
       tr.appendChild(el('td','nm', r.emp.name));
       if(isToday){
         const st = statusFor(r.emp, r.sh, nowMin);
-        const c = el('td'); c.appendChild(el('span','spill ' + st.cls, st.text));
+        const c = el('td','scr'); c.appendChild(el('span','spill ' + st.cls, st.text));
         tr.appendChild(c);
       }
+      const box = el('td','pr'); box.appendChild(el('span','chk'));
+      tr.appendChild(box);
       tbody.appendChild(tr);
     });
   });
   table.appendChild(tbody);
   list.appendChild(table);
 }
+
+/* ---------- impression ---------- */
+$('btnPrint').addEventListener('click', function(){ updatePrintHead(); window.print(); });
+window.addEventListener('beforeprint', updatePrintHead);
 
 /* ---------- import du PDF ---------- */
 $('btnSchedule').addEventListener('click', function(){ $('scheduleFile').click(); });
