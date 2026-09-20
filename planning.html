@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Planning — Contract Social Manager</title>
+<link rel="icon" type="image/webp" href="200.webp">
+<link rel="apple-touch-icon" href="200.webp">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#9A5420">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ================= THEME TOKENS ================= */
+:root{
+  --bg:#E4E7E1;
+  --panel:#F7F8F4;
+  --panel-raised:#FFFFFF;
+  --line:#C7CCC3;
+  --line-soft:#D7DAD1;
+  --text:#1B201C;
+  --text-muted:#5B645C;
+  --accent:#9A5420;
+  --accent-strong:#7C4319;
+
+  --status-ok-bg:#DCEEE1;
+  --status-ok-fg:#1E7A46;
+  --status-ok-line:#3DAE72;
+
+  --status-warn-bg:#FCEFCB;
+  --status-warn-fg:#7A5A0A;
+  --status-warn-line:#E8B23D;
+
+  --status-crit-bg:#FBDAD3;
+  --status-crit-fg:#8C2A17;
+  --status-crit-line:#E8543D;
+
+  --status-break-bg:#D9E8FB;
+  --status-break-fg:#1E4F8C;
+  --status-break-line:#3D8EE8;
+
+  --shadow: 0 1px 2px rgba(20,24,20,0.06), 0 4px 14px rgba(20,24,20,0.06);
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14181D;
+    --panel:#1B2129;
+    --panel-raised:#20272F;
+    --line:#323C46;
+    --line-soft:#2A323B;
+    --text:#E9EAE4;
+    --text-muted:#8B94A0;
+    --accent:#D08341;
+    --accent-strong:#E89A53;
+
+    --status-ok-bg:rgba(61,174,114,0.16);
+    --status-ok-fg:#6FD79C;
+    --status-ok-line:#3DAE72;
+
+    --status-warn-bg:rgba(232,178,61,0.16);
+    --status-warn-fg:#F2C566;
+    --status-warn-line:#E8B23D;
+
+    --status-crit-bg:rgba(232,84,61,0.18);
+    --status-crit-fg:#FF8B77;
+    --status-crit-line:#E8543D;
+
+    --status-break-bg:rgba(61,142,232,0.16);
+    --status-break-fg:#7FB6F5;
+    --status-break-line:#3D8EE8;
+
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14181D;
+  --panel:#1B2129;
+  --panel-raised:#20272F;
+  --line:#323C46;
+  --line-soft:#2A323B;
+  --text:#E9EAE4;
+  --text-muted:#8B94A0;
+  --accent:#D08341;
+  --accent-strong:#E89A53;
+
+  --status-ok-bg:rgba(61,174,114,0.16);
+  --status-ok-fg:#6FD79C;
+  --status-ok-line:#3DAE72;
+
+  --status-warn-bg:rgba(232,178,61,0.16);
+  --status-warn-fg:#F2C566;
+  --status-warn-line:#E8B23D;
+
+  --status-crit-bg:rgba(232,84,61,0.18);
+  --status-crit-fg:#FF8B77;
+  --status-crit-line:#E8543D;
+
+  --status-break-bg:rgba(61,142,232,0.16);
+  --status-break-fg:#7FB6F5;
+  --status-break-line:#3D8EE8;
+
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.35);
+}
+
+
+
+/* ================= BASE ================= */
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Space Grotesk', -apple-system, sans-serif;
+  min-height:100vh;
+}
+button{font-family:inherit;cursor:pointer;}
+.app{max-width:1100px;margin:0 auto;padding:20px 20px 60px;}
+
+.header{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:14px;
+}
+.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;}
+.brand h1{font-size:22px;font-weight:700;letter-spacing:-0.01em;margin:0;}
+.back{
+  color:var(--text-muted);font-size:12px;font-weight:600;text-decoration:none;
+  background:var(--panel);border:1px solid var(--line);padding:5px 11px;border-radius:12px;
+}
+.back:hover{border-color:var(--accent);color:var(--text);}
+.headerside{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+.liveclock{
+  font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;
+  border-left:2px solid var(--accent);padding-left:12px;line-height:1;
+}
+.controls{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{
+  border:1px solid var(--line);background:var(--panel-raised);color:var(--text);
+  padding:9px 14px;font-size:13px;font-weight:600;border-radius:3px;
+  display:inline-flex;align-items:center;gap:7px;
+  transition:border-color .15s ease, transform .1s ease, background-color .15s ease;
+}
+.btn:hover{border-color:var(--accent);}
+.btn:active{transform:translateY(1px);}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#FFF6EC;}
+.btn-primary:hover{background:var(--accent-strong);border-color:var(--accent-strong);}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+
+.plansub{margin:0 0 18px;font-size:13px;color:var(--text-muted);}
+
+/* ================= ATTENDUS ================= */
+.expected{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:16px;margin-bottom:20px;}
+.expected-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.expected-count{min-width:22px;height:22px;padding:0 7px;border-radius:11px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;}
+.expected-count:empty{display:none;}
+.expected-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px;}
+.exp-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-left-width:5px;border-radius:3px;background:var(--panel-raised);}
+.exp-item.up{border-left-color:var(--status-break-line);}
+.exp-item.soon{border-left-color:var(--status-warn-line);background:var(--status-warn-bg);}
+.exp-item.late{border-left-color:var(--status-crit-line);background:var(--status-crit-bg);}
+.exp-time{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+.exp-mid{flex:1;min-width:0;}
+.exp-name{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.exp-status{font-size:12.5px;color:var(--text-muted);}
+.exp-item.soon .exp-status{color:var(--status-warn-fg);font-weight:600;}
+.exp-item.late .exp-status{color:var(--status-crit-fg);font-weight:600;}
+.exp-btn{padding:7px 11px;}
+.exp-empty{grid-column:1 / -1;font-size:13px;color:var(--text-muted);padding:4px 0;}
+
+/* ================= SEMAINE ================= */
+.week{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:16px;}
+.week h2{margin:0 0 12px;font-size:15px;font-weight:700;}
+.daytabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;}
+.daytab{
+  flex:1 0 auto;min-width:66px;border:1px solid var(--line);background:var(--panel-raised);color:var(--text);
+  border-radius:3px;padding:8px 10px;text-align:center;font-weight:600;font-size:13px;line-height:1.3;
+}
+.daytab small{display:block;font-weight:500;color:var(--text-muted);font-size:12px;}
+.daytab.today{border-bottom:3px solid var(--accent);}
+.daytab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#FFF6EC;}
+.daytab[aria-selected="true"] small{color:#FFE3C8;}
+.daysum{margin:14px 0 8px;font-size:14px;color:var(--text-muted);}
+.daysum strong{color:var(--text);}
+.tablewrap{overflow-x:auto;}
+table.plan{width:100%;border-collapse:collapse;font-size:14px;}
+.plan th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
+.plan td{padding:9px 10px;border-bottom:1px solid var(--line-soft);}
+.plan td.t{font-family:'IBM Plex Mono',monospace;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.plan td.nm{font-weight:600;}
+.plan tr.grp td{background:var(--panel-raised);font-weight:700;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;}
+.nextday{color:var(--text-muted);font-size:11px;font-weight:500;margin-left:5px;font-family:'Space Grotesk',sans-serif;}
+.spill{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:700;border:1px solid var(--line);color:var(--text-muted);white-space:nowrap;}
+.spill.ok{background:var(--status-ok-bg);color:var(--status-ok-fg);border-color:var(--status-ok-line);}
+.spill.warn{background:var(--status-warn-bg);color:var(--status-warn-fg);border-color:var(--status-warn-line);}
+.spill.crit{background:var(--status-crit-bg);color:var(--status-crit-fg);border-color:var(--status-crit-line);}
+.spill.brk{background:var(--status-break-bg);color:var(--status-break-fg);border-color:var(--status-break-line);}
+
+@media (max-width:640px){
+  .app{padding:14px 12px 50px;}
+  .liveclock{font-size:22px;}
+  .plan td,.plan th{padding:8px 6px;}
+}
+
+/* ================= LOGIN ================= */
+body.auth-locked .app{display:none;}
+.login-overlay{display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;padding:20px;background:var(--bg);overflow:auto;}
+body.auth-locked .login-overlay{display:flex;}
+.login-card{width:100%;max-width:380px;background:var(--panel-raised);border:1px solid var(--line);border-radius:14px;padding:28px 24px;display:flex;flex-direction:column;gap:14px;box-shadow:0 10px 30px rgba(0,0,0,.10);}
+.login-card h1{margin:0;font-size:22px;color:var(--text);}
+.login-sub{margin:-6px 0 4px;font-size:13px;color:var(--text-muted);}
+.login-card label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600;color:var(--text-muted);}
+.login-card input{font:inherit;font-size:16px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);}
+.login-card input:focus{outline:2px solid var(--accent);outline-offset:1px;}
+.login-card .btn{justify-content:center;padding:12px;font-size:15px;}
+.login-card .linkbtn{align-self:center;}
+.login-error{min-height:18px;font-size:13px;color:#B3261E;}
+.login-info{color:#2E7D32;}
+
+</style>
+</head>
+<body class="auth-locked">
+
+<div class="login-overlay" id="loginOverlay">
+  <form class="login-card" id="loginForm" autocomplete="on">
+    <h1>Contract Social Manager</h1>
+    <p class="login-sub">Connexion réservée aux responsables</p>
+    <label>Email
+      <input type="email" id="loginEmail" name="email" autocomplete="username" required>
+    </label>
+    <label>Mot de passe
+      <input type="password" id="loginPass" name="password" autocomplete="current-password" required>
+    </label>
+    <div class="login-error" id="loginError" role="alert"></div>
+    <button type="submit" class="btn btn-primary" id="loginBtn">Se connecter</button>
+    <button type="button" class="linkbtn" id="loginReset">Mot de passe oublié ?</button>
+  </form>
+</div>
+
+
+<div class="app">
+  <header class="header">
+    <div class="brand">
+      <h1>Planning</h1>
+      <a class="back" href="index.html">← Suivi des employés</a>
+    </div>
+    <div class="headerside">
+      <div class="liveclock" id="clockNow" aria-label="Heure actuelle">--:--:--</div>
+      <div class="controls">
+        <button class="btn btn-primary" id="btnSchedule" type="button">Importer le planning (PDF)</button>
+        <input type="file" id="scheduleFile" accept="application/pdf" style="display:none;">
+        <button class="btn" id="btnLogout" type="button">Déconnexion</button>
+      </div>
+    </div>
+  </header>
+
+  <p class="plansub" id="planSub"></p>
+
+  <section class="expected" aria-labelledby="expectedTitle">
+    <div class="expected-title" id="expectedTitle">Attendus prochainement <span class="expected-count" id="expectedCount"></span></div>
+    <div class="expected-list" id="expectedList"></div>
+  </section>
+
+  <section class="week" aria-labelledby="weekTitle">
+    <h2 id="weekTitle">Planning de la semaine</h2>
+    <div class="daytabs" id="dayTabs" role="tablist" aria-label="Jour du planning"></div>
+    <div class="daysum" id="daySum" aria-live="polite"></div>
+    <div class="tablewrap"><div id="dayList"></div></div>
+  </section>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(function(){
+'use strict';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB_uy_D_AP4-zRyqfuzk8BADDAfgVQ4ZQw",
+  authDomain: "contractsocialmanager.firebaseapp.com",
+  projectId: "contractsocialmanager",
+  storageBucket: "contractsocialmanager.firebasestorage.app",
+  messagingSenderId: "887068908069",
+  appId: "1:887068908069:web:d5ffefd4a16b54c545fdcc"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+if(window['pdfjsLib']){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+const EXPECT_LEAD_MIN  = 60;   // affiche un employé attendu jusqu'à 60 min avant son heure
+const EXPECT_LATE_MIN  = 120;  // ... et le garde jusqu'à 120 min après s'il n'a pas pointé
+const EXPECT_GRACE_MIN = 5;    // tolérance avant de parler de retard
+
+const DAY_NAMES = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+const DAY_SHORT = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+const MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+let schedule = null;          // planning importé (Firestore : schedules/current)
+let employees = [];           // employés déjà pointés aujourd'hui (Firestore : timesheets/current, lecture seule)
+let unsubSchedule = null, unsubTimesheet = null;
+let importNote = '';
+let selDay = null;
+
+const $ = function(id){ return document.getElementById(id); };
+const pad = function(n){ return String(n).padStart(2,'0'); };
+
+/* Parse the weekly-schedule PDF from positioned text items.
+   pages: array (one per PDF page) of arrays of {str, x, y, w}
+          x = left edge, y = vertical position (grows downward), w = width */
+const SCHED_DAYS = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+
+function parseScheduleItems(pages){
+  let start = null, end = null, prevCols = null, prevNameX = null;
+  const employees = [];
+  const dmy = s => { const m = /(\d{2})\/(\d{2})\/(\d{4})/.exec(s); return m ? m[3]+'-'+m[2]+'-'+m[1] : null; };
+
+  pages.forEach(function(page, pi){
+    const toks = [];
+    page.forEach(function(it){
+      const s = it.str;
+      if(!s || !s.trim()) return;
+      const re = /\S+/g; let m;
+      while((m = re.exec(s))){
+        const x = it.x + it.w * (m.index / s.length);
+        const w = it.w * (m[0].length / s.length);
+        toks.push({t:m[0], x:x, w:w, c:x + w/2, y:it.y});
+      }
+    });
+    if(!toks.length) return;
+
+    if(!start){
+      const text = toks.slice().sort(function(a,b){ return (Math.round(a.y)-Math.round(b.y)) || (a.x-b.x); })
+                       .map(function(t){ return t.t; }).join(' ');
+      const m = /from\s+(\d{2}\/\d{2}\/\d{4})\s+to\s+(\d{2}\/\d{2}\/\d{4})/i.exec(text);
+      if(m){ start = dmy(m[1]); end = dmy(m[2]); }
+    }
+
+    // header row: the seven day names + "Name"
+    const hdr = {};
+    toks.forEach(function(t){
+      const k = t.t.toLowerCase();
+      const di = SCHED_DAYS.indexOf(k);
+      if(di >= 0 && !hdr[di]) hdr[di] = t;
+    });
+    let cols = null, hdrY = null, nameX = prevNameX;
+    if(Object.keys(hdr).length === 7){
+      cols = SCHED_DAYS.map(function(_,i){ return hdr[i].x; });
+      hdrY = hdr[0].y;
+      const nt = toks.find(function(t){ return t.t === 'Name' && Math.abs(t.y - hdrY) < 4; });
+      if(nt) nameX = nt.x;
+      prevCols = cols; prevNameX = nameX;
+    } else if(prevCols){
+      cols = prevCols;
+      hdrY = -1e9;
+    }
+    if(!cols || nameX == null) return;
+    const colW = (cols[6] - cols[0]) / 6;
+
+    const body = toks.filter(function(t){ return t.y > hdrY + 3; });
+    const anchors = body.filter(function(t){ return /^\d{1,3}$/.test(t.t) && t.c < nameX - 2; })
+                        .sort(function(a,b){ return a.y - b.y; });
+    if(!anchors.length) return;
+    const rows = anchors.map(function(a){ return {n:+a.t, y:a.y, lines:{}, cells:[[],[],[],[],[],[],[]]}; });
+
+    body.forEach(function(t){
+      if(anchors.indexOf(t) >= 0) return;
+      let bi = 0, bd = 1e9;
+      rows.forEach(function(r, i){ const d = Math.abs(r.y - t.y); if(d < bd){ bd = d; bi = i; } });
+      if(bd > 22) return;                                   // footer notes etc.
+      const r = rows[bi];
+      if(/^\d{1,2}:\d{2}\*?$/.test(t.t)){
+        let ci = Math.floor((t.c - cols[0] + colW*0.1) / colW);
+        if(ci < 0 || ci > 6) return;                        // "Rem" column and beyond
+        r.cells[ci].push(t);
+      } else if(t.x >= nameX - 3 && t.x < cols[0] - 3){
+        const key = Math.round(t.y / 3);
+        (r.lines[key] = r.lines[key] || []).push(t);
+      }
+    });
+
+    rows.forEach(function(r){
+      const lineKeys = Object.keys(r.lines).map(Number).sort(function(a,b){ return a-b; });
+      const lines = lineKeys.map(function(k){
+        return r.lines[k].sort(function(a,b){ return a.x-b.x; }).map(function(t){ return t.t; });
+      }).filter(function(words){ return words[0] !== '*' && words[0] !== 'Blank'; });   // footer notes
+      let name = '';
+      lines.forEach(function(words){
+        const prevWords = name ? name.split(' ') : [];
+        const last = prevWords[prevWords.length-1] || '';
+        // a name cut in the middle of a word ("NOUREDDIN" / "E")
+        if(name && words.length === 1 && words[0].length === 1 && last.length >= 6){
+          name += words[0];
+        } else {
+          name += (name ? ' ' : '') + words.join(' ');
+        }
+      });
+      name = name.replace(/\s+/g,' ').trim();
+      if(!name) return;
+
+      const d = {};
+      r.cells.forEach(function(toksInCell, ci){
+        const ts = toksInCell.sort(function(a,b){ return a.x-b.x; });
+        if(ts.length >= 2){
+          d[ci] = {s: ts[0].t.replace('*',''), e: ts[1].t.replace('*',''), o: /\*/.test(ts[1].t) ? 1 : 0};
+        } else if(ts.length === 1){
+          d[ci] = {s: ts[0].t.replace('*',''), e: '', o: 0};
+        }
+      });
+      employees.push({n:r.n, name:name, d:d});
+    });
+  });
+
+  if(!start || !end) throw new Error("Dates du planning introuvables (ligne « Weekly Schedule from … to … »).");
+  return {start:start, end:end, employees:employees};
+}
+
+async function extractScheduleItems(arrayBuffer){
+  const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+  const pages = [];
+  for(let p=1; p<=pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    pages.push(content.items
+      .filter(function(i){ return typeof i.str === 'string'; })
+      .map(function(i){ return {str:i.str, x:i.transform[4], y:-i.transform[5], w:i.width}; }));
+  }
+  return pages;
+}
+
+function validateSchedule(sc){
+  let shifts = 0, single = 0, people = 0;
+  sc.employees.forEach(function(e){
+    const days = Object.keys(e.d);
+    if(days.length) people++;
+    days.forEach(function(k){ shifts++; if(!e.d[k].e) single++; });
+  });
+  return {shifts:shifts, single:single, people:people};
+}
+
+/* ---------- données ---------- */
+function startListeners(){
+  if(!unsubSchedule){
+    unsubSchedule = db.collection('schedules').doc('current').onSnapshot(function(doc){
+      const prevStart = schedule && schedule.start;
+      schedule = doc.exists ? doc.data() : null;
+      if(!schedule || schedule.start !== prevStart) selDay = null;
+      renderAll();
+    }, function(err){ console.error('Planning :', err); });
+  }
+  if(!unsubTimesheet){
+    unsubTimesheet = db.collection('timesheets').doc('current').onSnapshot(function(doc){
+      employees = (doc.exists && doc.data().employees) || [];
+      renderAll();
+    }, function(err){ console.error('Pointeuse :', err); });
+  }
+}
+function stopListeners(){
+  if(unsubSchedule){ unsubSchedule(); unsubSchedule = null; }
+  if(unsubTimesheet){ unsubTimesheet(); unsubTimesheet = null; }
+  schedule = null; employees = []; selDay = null;
+  renderAll();
+}
+
+function saveSchedule(sc){
+  const doc = {
+    start: sc.start,
+    end: sc.end,
+    employees: sc.employees.filter(function(e){ return Object.keys(e.d).length > 0; }),
+    dismissed: {},
+    updatedAt: new Date().toISOString()
+  };
+  schedule = doc; selDay = null;
+  renderAll();
+  return db.collection('schedules').doc('current').set(doc);
+}
+
+function dismissExpected(key){
+  if(schedule){
+    schedule.dismissed = schedule.dismissed || {};
+    schedule.dismissed[key] = true;
+    renderAll();
+  }
+  db.collection('schedules').doc('current').update({['dismissed.' + key]: true})
+    .catch(function(err){ console.error('Planning :', err); });
+}
+
+/* ---------- rapprochement des noms ---------- */
+function nameTokens(n){
+  return String(n||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);
+}
+function sameName(a, b){
+  const A = nameTokens(a), B = nameTokens(b);
+  if(!A.length || !B.length) return false;
+  const small = A.length <= B.length ? A : B, large = A.length <= B.length ? B : A;
+  const hits = small.filter(function(t){
+    return large.some(function(u){
+      return u === t || (t.length >= 4 && u.length >= 4 && (u.startsWith(t) || t.startsWith(u)));
+    });
+  }).length;
+  return hits === small.length && (small.length >= 2 || large.length === 1);
+}
+
+/* ---------- utilitaires planning ---------- */
+function fmtDur(m){
+  if(m < 60) return m + ' min';
+  const h = Math.floor(m/60), r = m % 60;
+  return h + ' h' + (r ? ' ' + pad(r) : '');
+}
+function startParts(){ return schedule.start.split('-').map(Number); }
+function todayIdx(){
+  const now = new Date(), p = startParts();
+  return Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(p[0], p[1]-1, p[2])) / 86400000);
+}
+function dayDate(i){
+  const p = startParts();
+  return new Date(Date.UTC(p[0], p[1]-1, p[2] + i));
+}
+function toMin(hhmm){ const a = hhmm.split(':').map(Number); return a[0]*60 + a[1]; }
+function arrivedFor(emp){
+  const key = 'd' + todayIdx() + '_' + emp.n;
+  if(schedule.dismissed && schedule.dismissed[key]) return true;
+  return employees.some(function(e){
+    return e.clockIn !== null && e.clockIn !== undefined && sameName(emp.name, e.name);
+  });
+}
+function nowMinutes(){ const d = new Date(); return d.getHours()*60 + d.getMinutes(); }
+function fmtShort(iso){ return iso.slice(8,10) + '/' + iso.slice(5,7); }
+
+function el(tag, cls, text){
+  const e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(text !== undefined) e.textContent = text;
+  return e;
+}
+
+/* ---------- rendu ---------- */
+function renderAll(){ renderPlanSub(); renderExpected(); renderWeek(); }
+
+function renderPlanSub(){
+  const sub = $('planSub');
+  if(!schedule){ sub.textContent = 'Aucun planning chargé. Importez le PDF du planning hebdomadaire.'; return; }
+  const ti = todayIdx();
+  let t = 'Planning du ' + fmtShort(schedule.start) + ' au ' + fmtShort(schedule.end);
+  if(importNote) t += ' — ' + importNote;
+  if(ti < 0 || ti > 6) t += '. Il ne couvre pas la date d\'aujourd\'hui : importez celui de cette semaine.';
+  sub.textContent = t;
+}
+
+function renderExpected(){
+  const list = $('expectedList'), count = $('expectedCount');
+  list.textContent = '';
+  count.textContent = '';
+  if(!schedule){ list.appendChild(el('div','exp-empty','Importez le planning pour voir les employés attendus.')); return; }
+  const ti = todayIdx();
+  if(ti < 0 || ti > 6){ list.appendChild(el('div','exp-empty','Rien à afficher : le planning chargé ne couvre pas aujourd\'hui.')); return; }
+
+  const nowMin = nowMinutes();
+  const items = [];
+  (schedule.employees || []).forEach(function(emp){
+    const sh = emp.d && emp.d[ti];
+    if(!sh) return;
+    const dt = toMin(sh.s) - nowMin;
+    if(dt > EXPECT_LEAD_MIN || dt < -EXPECT_LATE_MIN) return;
+    if(arrivedFor(emp)) return;
+    items.push({emp:emp, sh:sh, dt:dt, key:'d' + ti + '_' + emp.n});
+  });
+  items.sort(function(a,b){ return (a.dt - b.dt) || a.emp.name.localeCompare(b.emp.name); });
+
+  if(!items.length){ list.appendChild(el('div','exp-empty',"Personne n'est attendu dans l'heure qui vient.")); return; }
+  count.textContent = String(items.length);
+  items.forEach(function(it){
+    const state = it.dt > 15 ? 'up' : (it.dt > -EXPECT_GRACE_MIN ? 'soon' : 'late');
+    const row = el('div', 'exp-item ' + state);
+    const mid = el('div','exp-mid');
+    const n = el('div','exp-name', it.emp.name); n.title = it.emp.name;
+    mid.appendChild(n);
+    mid.appendChild(el('div','exp-status',
+      it.dt > 0 ? 'dans ' + fmtDur(it.dt) : (state === 'late' ? 'en retard de ' + fmtDur(-it.dt) : 'à pointer maintenant')));
+    const b = el('button','btn exp-btn','Arrivé');
+    b.type = 'button'; b.title = 'Retirer de la liste';
+    b.setAttribute('aria-label', 'Marquer comme arrivé : ' + it.emp.name);
+    b.addEventListener('click', function(){ dismissExpected(it.key); });
+    row.appendChild(el('div','exp-time', it.sh.s));
+    row.appendChild(mid);
+    row.appendChild(b);
+    list.appendChild(row);
+  });
+}
+
+function statusFor(emp, sh, nowMin){
+  if(arrivedFor(emp)) return {cls:'ok', text:'Arrivé'};
+  // service déjà terminé et jamais pointé : simple information, pas une alerte
+  if(sh.e && nowMin >= toMin(sh.e) + (sh.o ? 1440 : 0)) return {cls:'', text:'Non pointé'};
+  const dt = toMin(sh.s) - nowMin;
+  if(dt > EXPECT_LEAD_MIN) return {cls:'', text:'À venir'};
+  if(dt > 0) return {cls:'brk', text:'Dans ' + fmtDur(dt)};
+  if(dt > -EXPECT_GRACE_MIN) return {cls:'warn', text:'Maintenant'};
+  if(dt >= -EXPECT_LATE_MIN) return {cls:'crit', text:'En retard de ' + fmtDur(-dt)};
+  return {cls:'crit', text:'Non pointé'};
+}
+
+function renderWeek(){
+  const tabs = $('dayTabs'), list = $('dayList'), sum = $('daySum');
+  list.textContent = '';
+  if(!schedule){
+    tabs.textContent = ''; tabs._sig = null;
+    sum.textContent = 'Aucun planning chargé.';
+    return;
+  }
+  const ti = todayIdx();
+  if(selDay === null) selDay = (ti >= 0 && ti <= 6) ? ti : 0;
+
+  const sig = schedule.start + '|' + selDay + '|' + ti;
+  if(tabs._sig !== sig){
+    tabs._sig = sig;
+    tabs.textContent = '';
+    for(let i=0; i<7; i++){
+      const d = dayDate(i);
+      const b = el('button', 'daytab' + (i === ti ? ' today' : ''));
+      b.type = 'button';
+      b.setAttribute('role','tab');
+      b.setAttribute('aria-selected', String(i === selDay));
+      b.appendChild(document.createTextNode(DAY_SHORT[i]));
+      b.appendChild(el('small','', String(d.getUTCDate())));
+      b.setAttribute('aria-label', DAY_NAMES[i] + ' ' + d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()] + (i === ti ? ' (aujourd\'hui)' : ''));
+      b.addEventListener('click', function(){ selDay = i; renderWeek(); });
+      tabs.appendChild(b);
+    }
+  }
+
+  const isToday = selDay === ti;
+  const nowMin = nowMinutes();
+  const rows = [];
+  (schedule.employees || []).forEach(function(emp){
+    const sh = emp.d && emp.d[selDay];
+    if(sh) rows.push({emp:emp, sh:sh});
+  });
+  rows.sort(function(a,b){ return toMin(a.sh.s) - toMin(b.sh.s) || a.emp.name.localeCompare(b.emp.name); });
+
+  const d = dayDate(selDay);
+  let arrived = 0;
+  if(isToday) rows.forEach(function(r){ if(arrivedFor(r.emp)) arrived++; });
+  sum.textContent = '';
+  const strong = el('strong','', DAY_NAMES[selDay] + ' ' + d.getUTCDate() + ' ' + MONTHS[d.getUTCMonth()]);
+  sum.appendChild(strong);
+  sum.appendChild(document.createTextNode(' : ' + rows.length + (rows.length > 1 ? ' employés prévus' : ' employé prévu') +
+    (isToday && rows.length ? ', dont ' + arrived + (arrived > 1 ? ' déjà arrivés' : ' déjà arrivé') : '')));
+
+  if(!rows.length){ list.appendChild(el('div','exp-empty','Personne n\'est prévu ce jour-là.')); return; }
+
+  const table = el('table','plan');
+  const thead = el('thead'), hr = el('tr');
+  ['Début','Fin','Employé'].concat(isToday ? ['Statut'] : []).forEach(function(h){ hr.appendChild(el('th','',h)); });
+  thead.appendChild(hr); table.appendChild(thead);
+  const tbody = el('tbody');
+  const groups = [['Matin', 0, 12*60], ['Après-midi', 12*60, 18*60], ['Soir', 18*60, 24*60]];
+  groups.forEach(function(g){
+    const gr = rows.filter(function(r){ const m = toMin(r.sh.s); return m >= g[1] && m < g[2]; });
+    if(!gr.length) return;
+    const head = el('tr','grp');
+    const td = el('td','', g[0] + ' (' + gr.length + ')');
+    td.colSpan = isToday ? 4 : 3;
+    head.appendChild(td); tbody.appendChild(head);
+    gr.forEach(function(r){
+      const tr = el('tr');
+      tr.appendChild(el('td','t', r.sh.s));
+      const end = el('td','t', r.sh.e || '—');
+      if(r.sh.o) end.appendChild(el('span','nextday','lendemain'));
+      tr.appendChild(end);
+      tr.appendChild(el('td','nm', r.emp.name));
+      if(isToday){
+        const st = statusFor(r.emp, r.sh, nowMin);
+        const c = el('td'); c.appendChild(el('span','spill ' + st.cls, st.text));
+        tr.appendChild(c);
+      }
+      tbody.appendChild(tr);
+    });
+  });
+  table.appendChild(tbody);
+  list.appendChild(table);
+}
+
+/* ---------- import du PDF ---------- */
+$('btnSchedule').addEventListener('click', function(){ $('scheduleFile').click(); });
+$('scheduleFile').addEventListener('change', async function(e){
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  $('planSub').textContent = 'Lecture du planning…';
+  try{
+    if(!window['pdfjsLib']) throw new Error("le lecteur PDF n'est pas chargé (vérifiez la connexion internet).");
+    const sc = parseScheduleItems(await extractScheduleItems(await file.arrayBuffer()));
+    const v = validateSchedule(sc);
+    if(v.people === 0) throw new Error('aucun horaire trouvé dans ce PDF.');
+    if(v.single > 0) throw new Error('lecture incertaine (' + v.single + " horaire(s) incomplet(s)). Le planning n'a pas été importé.");
+    importNote = 'importé : ' + v.people + ' employés, ' + v.shifts + ' horaires';
+    setTimeout(function(){ importNote = ''; renderPlanSub(); }, 10000);
+    try{
+      await saveSchedule(sc);
+    }catch(err){
+      alert("Planning lu, mais impossible de l'enregistrer pour les autres appareils : " + err.message);
+    }
+  }catch(err){
+    alert('Import du planning impossible : ' + err.message);
+    renderAll();
+  }
+});
+
+/* ---------- connexion ---------- */
+function loginMessage(text, ok){
+  const el = document.getElementById('loginError');
+  el.textContent = text || '';
+  el.classList.toggle('login-info', !!ok);
+}
+
+function loginErrorText(err){
+  switch(err && err.code){
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found': return 'Email ou mot de passe incorrect.';
+    case 'auth/invalid-email': return "Adresse email invalide.";
+    case 'auth/user-disabled': return 'Ce compte est désactivé.';
+    case 'auth/too-many-requests': return 'Trop de tentatives. Réessayez dans quelques minutes.';
+    case 'auth/network-request-failed': return 'Pas de connexion internet.';
+    default: return 'Connexion impossible. Réessayez.';
+  }
+}
+
+document.getElementById('loginForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const btn = document.getElementById('loginBtn');
+  loginMessage('');
+  btn.disabled = true;
+  auth.signInWithEmailAndPassword(email, pass)
+    .then(function(){ document.getElementById('loginPass').value = ''; })
+    .catch(function(err){ loginMessage(loginErrorText(err)); })
+    .then(function(){ btn.disabled = false; });
+});
+
+document.getElementById('loginReset').addEventListener('click', function(){
+  const email = document.getElementById('loginEmail').value.trim();
+  if(!email){ loginMessage("Entrez votre email ci-dessus, puis cliquez sur « Mot de passe oublié ? »."); return; }
+  auth.sendPasswordResetEmail(email)
+    .then(function(){ loginMessage("Si ce compte existe, un email de réinitialisation vient d'être envoyé.", true); })
+    .catch(function(err){ loginMessage(loginErrorText(err)); });
+});
+
+document.getElementById('btnLogout').addEventListener('click', function(){
+  auth.signOut();
+});
+
+
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(){});
+let started = false;
+auth.onAuthStateChanged(function(user){
+  if(user){
+    document.body.classList.remove('auth-locked');
+    if(!started){ started = true; startListeners(); }
+  } else {
+    document.body.classList.add('auth-locked');
+    started = false;
+    stopListeners();
+  }
+});
+
+/* ---------- horloge et rafraîchissement ---------- */
+function tickClock(){
+  const d = new Date();
+  $('clockNow').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
+setInterval(tickClock, 1000);
+tickClock();
+setInterval(function(){ if(schedule) { renderExpected(); renderWeek(); } }, 15000);
+renderAll();
+
+})();
+</script>
+</body>
+</html>
