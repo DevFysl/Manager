@@ -198,6 +198,20 @@ table.plan{width:100%;border-collapse:collapse;font-size:14px;}
 .spill.crit{background:var(--status-crit-bg);color:var(--status-crit-fg);border-color:var(--status-crit-line);}
 .spill.brk{background:var(--status-break-bg);color:var(--status-break-fg);border-color:var(--status-break-line);}
 
+
+/* ================= HEURE MANUELLE ================= */
+.timetools{display:flex;gap:6px;flex-wrap:wrap;}
+.timetools .btn{padding:7px 11px;font-size:12px;}
+.liveclock.manual{border-left-color:var(--status-warn-line);}
+.liveclock.manual,.liveclock.manual #clockNow{color:var(--status-warn-fg);}
+dialog.timedlg{border:1px solid var(--line);border-radius:6px;background:var(--panel-raised);color:var(--text);padding:0;width:min(400px,calc(100vw - 32px));}
+dialog.timedlg::backdrop{background:rgba(10,14,12,.55);}
+.timedlg form{padding:20px;display:flex;flex-direction:column;gap:12px;}
+.timedlg h2{margin:0;font-size:17px;}
+.timedlg p{margin:0;font-size:13px;color:var(--text-muted);line-height:1.45;}
+.timedlg input{font-size:26px;font-family:'IBM Plex Mono',monospace;font-weight:600;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--text);}
+.timedlg .trow{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;}
+
 @media print{
   @page{margin:14mm;}
   body{background:#fff;color:#000;}
@@ -267,6 +281,10 @@ body.auth-locked .login-overlay{display:flex;}
     </div>
     <div class="headerside">
       <div class="liveclock" id="clockNow" aria-label="Heure actuelle">--:--:--</div>
+      <div class="timetools printhide">
+        <button class="btn" id="btnSetTime" type="button" title="Régler l'heure à la main">Régler l'heure</button>
+        <button class="btn" id="btnAutoTime" type="button" title="Utiliser l'heure de l'appareil">Heure auto</button>
+      </div>
       <div class="controls">
         <button class="btn btn-primary" id="btnSchedule" type="button">Importer le planning (PDF)</button>
         <input type="file" id="scheduleFile" accept="application/pdf" style="display:none;">
@@ -293,6 +311,18 @@ body.auth-locked .login-overlay{display:flex;}
     <div class="tablewrap"><div id="dayList"></div></div>
   </section>
 </div>
+
+<dialog class="timedlg" id="timeDlg">
+  <form id="timeForm" method="dialog">
+    <h2>Régler l'heure du système</h2>
+    <p>L'heure choisie remplace celle de l'appareil et continue de défiler. Les départs de pause, retours et sorties sont enregistrés avec cette heure. Le réglage ne concerne que cet appareil, et les alertes envoyées au téléphone quand l'application est fermée gardent l'heure réelle.</p>
+    <input type="time" id="timeInput" required aria-label="Nouvelle heure">
+    <div class="trow">
+      <button type="button" class="btn" id="timeCancel">Annuler</button>
+      <button type="submit" class="btn btn-primary">Appliquer</button>
+    </div>
+  </form>
+</dialog>
 
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -539,7 +569,7 @@ function fmtDur(m){
 }
 function startParts(){ return schedule.start.split('-').map(Number); }
 function todayIdx(){
-  const now = new Date(), p = startParts();
+  const now = appNow(), p = startParts();
   return Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(p[0], p[1]-1, p[2])) / 86400000);
 }
 function dayDate(i){
@@ -554,7 +584,7 @@ function arrivedFor(emp){
     return e.clockIn !== null && e.clockIn !== undefined && sameName(emp.name, e.name);
   });
 }
-function nowMinutes(){ const d = new Date(); return d.getHours()*60 + d.getMinutes(); }
+function nowMinutes(){ const d = appNow(); return d.getHours()*60 + d.getMinutes(); }
 function fmtShort(iso){ return iso.slice(8,10) + '/' + iso.slice(5,7); }
 
 function el(tag, cls, text){
@@ -821,13 +851,64 @@ auth.onAuthStateChanged(function(user){
   }
 });
 
+/* ============================================================
+   HEURE SYSTÈME — réglage manuel ou automatique (heure de l'appareil)
+   ============================================================ */
+const TIME_KEY = 'csct_time_offset';
+let timeOffsetMs = 0;
+function loadTimeOffset(){
+  timeOffsetMs = 0;
+  try{ const v = parseInt(localStorage.getItem(TIME_KEY) || '0', 10); if(isFinite(v)) timeOffsetMs = v; }catch(e){}
+}
+loadTimeOffset();
+function appNow(){ return new Date(Date.now() + timeOffsetMs); }
+function paintTimeMode(){
+  const manual = timeOffsetMs !== 0;
+  const box = document.querySelector('.liveclock');
+  if(box){
+    box.classList.toggle('manual', manual);
+    const lbl = box.querySelector('.lbl');
+    if(lbl) lbl.textContent = manual ? 'Heure manuelle' : 'Heure Système';
+  }
+  document.getElementById('btnSetTime').classList.toggle('btn-active', manual);
+  document.getElementById('btnAutoTime').classList.toggle('btn-active', !manual);
+}
+function afterTimeChange(){ paintTimeMode(); tickClock(); renderAll(); }
+document.getElementById('btnSetTime').addEventListener('click', function(){
+  const d = appNow();
+  document.getElementById('timeInput').value = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('timeDlg').showModal();
+});
+document.getElementById('timeCancel').addEventListener('click', function(){ document.getElementById('timeDlg').close(); });
+document.getElementById('timeForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  const v = document.getElementById('timeInput').value;
+  if(!v) return;
+  const p = v.split(':').map(Number);
+  const d = new Date();
+  d.setHours(p[0], p[1], 0, 0);
+  timeOffsetMs = d.getTime() - Date.now();
+  try{ localStorage.setItem(TIME_KEY, String(timeOffsetMs)); }catch(err){}
+  document.getElementById('timeDlg').close();
+  afterTimeChange();
+});
+document.getElementById('btnAutoTime').addEventListener('click', function(){
+  timeOffsetMs = 0;
+  try{ localStorage.removeItem(TIME_KEY); }catch(err){}
+  afterTimeChange();
+});
+window.addEventListener('storage', function(e){
+  if(e.key === TIME_KEY){ loadTimeOffset(); afterTimeChange(); }
+});
+
 /* ---------- horloge et rafraîchissement ---------- */
 function tickClock(){
-  const d = new Date();
+  const d = appNow();
   $('clockNow').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
 }
 setInterval(tickClock, 1000);
 tickClock();
+paintTimeMode();
 setInterval(function(){ if(schedule) { renderExpected(); renderWeek(); } }, 15000);
 renderAll();
 

@@ -231,28 +231,6 @@ a.btn{text-decoration:none;}
 .btn-action.out-btn{border-color:var(--line);color:var(--text-muted);}
 .btn-action.out-btn:hover{background:var(--line-soft);color:var(--text);}
 
-/* Notes Button in table row */
-.btn-notes {
-  border: 1px solid var(--line);
-  background: var(--panel-raised);
-  color: var(--text-muted);
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 3px;
-  display: none;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.15s ease;
-}
-.btn-notes:hover { border-color: var(--accent); color: var(--accent); }
-.btn-notes.has-note {
-  border-color: var(--accent);
-  background: var(--status-warn-bg);
-  color: var(--accent-strong);
-}
-.btn-notes svg { width: 12px; height: 12px; }
-
 /* ================= FILTER & SEARCH BAR ================= */
 .filterbar{
   display:flex;
@@ -488,7 +466,7 @@ tbody tr.st-done{opacity:0.55;}
   padding:10px 16px;border-top:1px solid var(--line);background:var(--panel);
 }
 .empcard-foot .action-group{flex:1 1 auto;display:flex;gap:8px;flex-wrap:wrap;}
-.empcard-foot .btn-notes, .empcard-foot .btn-action{padding:8px 12px;font-size:12.5px;}
+.empcard-foot .btn-action{padding:8px 12px;font-size:12.5px;}
 .empcard-foot .rowedit{width:32px;height:32px;flex-shrink:0;}
 
 .pill{
@@ -595,6 +573,19 @@ tbody tr.st-done{opacity:0.55;}
   .cards{display:none !important;}
 }
 
+/* ================= HEURE MANUELLE ================= */
+.timetools{display:flex;gap:6px;flex-wrap:wrap;}
+.timetools .btn{padding:7px 11px;font-size:12px;}
+.liveclock.manual{border-left-color:var(--status-warn-line);}
+.liveclock.manual,.liveclock.manual #clockNow{color:var(--status-warn-fg);}
+dialog.timedlg{border:1px solid var(--line);border-radius:6px;background:var(--panel-raised);color:var(--text);padding:0;width:min(400px,calc(100vw - 32px));}
+dialog.timedlg::backdrop{background:rgba(10,14,12,.55);}
+.timedlg form{padding:20px;display:flex;flex-direction:column;gap:12px;}
+.timedlg h2{margin:0;font-size:17px;}
+.timedlg p{margin:0;font-size:13px;color:var(--text-muted);line-height:1.45;}
+.timedlg input{font-size:26px;font-family:'IBM Plex Mono',monospace;font-weight:600;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--text);}
+.timedlg .trow{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;}
+
 /* ================= LOGIN ================= */
 body.auth-locked .app{display:none;}
 .login-overlay{display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;padding:20px;background:var(--bg);overflow:auto;}
@@ -638,6 +629,10 @@ body.auth-locked .login-overlay{display:flex;}
     </div>
     <div class="headerside">
       <div class="liveclock"><span class="lbl">Heure Système</span><span id="clockNow">--:--:--</span></div>
+      <div class="timetools printhide">
+        <button class="btn" id="btnSetTime" type="button" title="Régler l'heure à la main">Régler l'heure</button>
+        <button class="btn" id="btnAutoTime" type="button" title="Utiliser l'heure de l'appareil">Heure auto</button>
+      </div>
       <div class="controls printhide">
         <button class="btn" id="btnSound" title="Activer/Désactiver l'alerte sonore">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
@@ -757,6 +752,18 @@ body.auth-locked .login-overlay{display:flex;}
 </div>
 
 <!-- MODALE EMPLOYÉ (AJOUT / ÉDITION) -->
+<dialog class="timedlg" id="timeDlg">
+  <form id="timeForm" method="dialog">
+    <h2>Régler l'heure du système</h2>
+    <p>L'heure choisie remplace celle de l'appareil et continue de défiler. Les départs de pause, retours et sorties sont enregistrés avec cette heure. Le réglage ne concerne que cet appareil, et les alertes envoyées au téléphone quand l'application est fermée gardent l'heure réelle.</p>
+    <input type="time" id="timeInput" required aria-label="Nouvelle heure">
+    <div class="trow">
+      <button type="button" class="btn" id="timeCancel">Annuler</button>
+      <button type="submit" class="btn btn-primary">Appliquer</button>
+    </div>
+  </form>
+</dialog>
+
 <div class="modalbg" id="modalBg">
   <div class="modal">
     <h3 id="modalTitle">Ajouter un employé</h3>
@@ -778,22 +785,6 @@ body.auth-locked .login-overlay{display:flex;}
       <button class="linkbtn" id="btnDelete" style="margin-right:auto;display:none;">Supprimer l'employé</button>
       <button class="btn btn-ghost" id="btnCancel">Annuler</button>
       <button class="btn btn-primary" id="btnSave">Enregistrer</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODALE NOTES DU MANAGER -->
-<div class="modalbg" id="notesModalBg">
-  <div class="modal">
-    <h3>Notes du Manager</h3>
-    <div class="sub" id="notesModalSub">Consignez des remarques détaillées, justifications de retard ou échanges de poste.</div>
-    <div class="field">
-      <label>Remarques (Multi-lignes)</label>
-      <textarea id="notesTextArea" placeholder="Écrivez vos notes ici..."></textarea>
-    </div>
-    <div class="modalactions">
-      <button class="btn btn-ghost" id="btnCancelNotes">Annuler</button>
-      <button class="btn btn-primary" id="btnSaveNotes">Enregistrer la note</button>
     </div>
   </div>
 </div>
@@ -844,7 +835,6 @@ let employees = [];
 let unsubscribeSnapshot = null;
 let nextTempId = 1;
 let editingBadge = null;
-let currentNotesBadge = null;
 let currentFilter = 'all';
 let searchQuery = '';
 let soundEnabled = false;
@@ -1197,10 +1187,60 @@ if('serviceWorker' in navigator){
 })();
 
 /* ============================================================
+   HEURE SYSTÈME — réglage manuel ou automatique (heure de l'appareil)
+   ============================================================ */
+const TIME_KEY = 'csct_time_offset';
+let timeOffsetMs = 0;
+function loadTimeOffset(){
+  timeOffsetMs = 0;
+  try{ const v = parseInt(localStorage.getItem(TIME_KEY) || '0', 10); if(isFinite(v)) timeOffsetMs = v; }catch(e){}
+}
+loadTimeOffset();
+function appNow(){ return new Date(Date.now() + timeOffsetMs); }
+function paintTimeMode(){
+  const manual = timeOffsetMs !== 0;
+  const box = document.querySelector('.liveclock');
+  if(box){
+    box.classList.toggle('manual', manual);
+    const lbl = box.querySelector('.lbl');
+    if(lbl) lbl.textContent = manual ? 'Heure manuelle' : 'Heure Système';
+  }
+  document.getElementById('btnSetTime').classList.toggle('btn-active', manual);
+  document.getElementById('btnAutoTime').classList.toggle('btn-active', !manual);
+}
+function afterTimeChange(){ paintTimeMode(); tickClock(); render(); }
+document.getElementById('btnSetTime').addEventListener('click', function(){
+  const d = appNow();
+  document.getElementById('timeInput').value = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('timeDlg').showModal();
+});
+document.getElementById('timeCancel').addEventListener('click', function(){ document.getElementById('timeDlg').close(); });
+document.getElementById('timeForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  const v = document.getElementById('timeInput').value;
+  if(!v) return;
+  const p = v.split(':').map(Number);
+  const d = new Date();
+  d.setHours(p[0], p[1], 0, 0);
+  timeOffsetMs = d.getTime() - Date.now();
+  try{ localStorage.setItem(TIME_KEY, String(timeOffsetMs)); }catch(err){}
+  document.getElementById('timeDlg').close();
+  afterTimeChange();
+});
+document.getElementById('btnAutoTime').addEventListener('click', function(){
+  timeOffsetMs = 0;
+  try{ localStorage.removeItem(TIME_KEY); }catch(err){}
+  afterTimeChange();
+});
+window.addEventListener('storage', function(e){
+  if(e.key === TIME_KEY){ loadTimeOffset(); afterTimeChange(); }
+});
+
+/* ============================================================
    CALCULS D'HORAIRES
    ============================================================ */
 function nowMinutes(){
-  const d = new Date();
+  const d = appNow();
   return d.getHours()*60 + d.getMinutes();
 }
 function hmToMin(hm){
@@ -1374,8 +1414,7 @@ function render(){
       const matchName = (emp.name || '').toLowerCase().includes(q);
       const matchBadge = (emp.badge || '').toLowerCase().includes(q);
       const matchId = (emp.id || '').toLowerCase().includes(q);
-      const matchNote = (emp.note || '').toLowerCase().includes(q);
-      if(!matchName && !matchBadge && !matchId && !matchNote) return false;
+      if(!matchName && !matchBadge && !matchId) return false;
     }
 
     return true; 
@@ -1422,10 +1461,6 @@ function render(){
       `;
     }
 
-    const hasNote = emp.note && emp.note.trim().length > 0;
-    const noteBtnClass = hasNote ? 'btn-notes has-note' : 'btn-notes';
-    const noteBtnText = hasNote ? 'Notes (1)' : 'Notes';
-
     tr.innerHTML = `
       <td class="mono">${emp.badge || '—'}</td>
       <td class="name">${emp.name || '<span class="dash">Sans nom</span>'}<span class="badgeno">${emp.id ? 'ID '+emp.id : ''}</span></td>
@@ -1439,7 +1474,6 @@ function render(){
       <td class="mono conthrs">${calc.status==='break'||calc.status==='breakover' ? '<span class="dash">en pause</span>' : (calc.status==='done' ? '<span class="dash">fini</span>' : fmtHrs(calc.contMinutes))}</td>
       <td class="mono totalhrs">${fmtHrs(calc.totalMinutes)}</td>
       <td><span class="pill ${meta.pill}"><span class="pilldot"></span>${calc.statusLabel}</span></td>
-      <td class="printhide"><button class="${noteBtnClass}" data-badge="${emp.badge}" onclick="openNotesModal('${emp.badge}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>${noteBtnText}</button></td>
       <td class="printhide"><div class="action-group">${quickActions}</div></td>
       <td class="printhide"><button class="rowedit" data-badge="${emp.badge}" title="Modifier"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button></td>
     `;
@@ -1487,7 +1521,6 @@ function render(){
         </div>
       </div>
       <div class="empcard-foot printhide">
-        <button class="${noteBtnClass}" data-badge="${emp.badge}" onclick="openNotesModal('${emp.badge}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>${noteBtnText}</button>
         <div class="action-group">${quickActions}</div>
         <button class="rowedit" data-badge="${emp.badge}" title="Modifier"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>
       </div>
@@ -1584,12 +1617,13 @@ document.getElementById('searchInput').addEventListener('input', function(e){
    HORLOGE TEMPS RÉEL
    ============================================================ */
 function tickClock(){
-  const d = new Date();
+  const d = appNow();
   document.getElementById('clockNow').textContent =
     String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');
 }
 setInterval(tickClock, 1000);
 tickClock();
+paintTimeMode();
 setInterval(render, 15000);
 
 /* ============================================================
@@ -1634,7 +1668,6 @@ document.getElementById('btnSave').addEventListener('click', ()=>{
   if(editingBadge && idx>-1){
     employees[idx] = Object.assign({}, employees[idx], rec, {badge: employees[idx].badge});
   } else {
-    rec.note = '';
     employees.push(rec);
   }
   saveState();
@@ -1646,37 +1679,6 @@ document.getElementById('btnDelete').addEventListener('click', ()=>{
   saveState();
   render();
   closeModal();
-});
-
-/* ============================================================
-   MODALE — Notes du Manager
-   ============================================================ */
-const notesModalBg = document.getElementById('notesModalBg');
-window.openNotesModal = function(badge){
-  currentNotesBadge = badge;
-  const emp = employees.find(e => String(e.badge) === String(badge));
-  document.getElementById('notesModalSub').textContent = emp ? `Employé : ${emp.name || emp.badge}` : '';
-  document.getElementById('notesTextArea').value = emp ? (emp.note || '') : '';
-  notesModalBg.classList.add('show');
-};
-
-function closeNotesModal(){
-  notesModalBg.classList.remove('show');
-  currentNotesBadge = null;
-}
-
-document.getElementById('btnCancelNotes').addEventListener('click', closeNotesModal);
-notesModalBg.addEventListener('click', e => { if(e.target === notesModalBg) closeNotesModal(); });
-
-document.getElementById('btnSaveNotes').addEventListener('click', () => {
-  if(!currentNotesBadge) return;
-  const idx = employees.findIndex(e => String(e.badge) === String(currentNotesBadge));
-  if(idx > -1){
-    employees[idx].note = document.getElementById('notesTextArea').value.trim();
-    saveState();
-    render();
-  }
-  closeNotesModal();
 });
 
 /* ============================================================
@@ -1705,7 +1707,7 @@ document.getElementById('btnTheme').addEventListener('click', ()=>{
    IMPRESSION
    ============================================================ */
 document.getElementById('btnPrint').addEventListener('click', ()=>{
-  document.getElementById('printTimestamp').textContent = new Date().toLocaleString('fr-FR');
+  document.getElementById('printTimestamp').textContent = appNow().toLocaleString('fr-FR');
   window.print();
 });
 
@@ -1789,8 +1791,7 @@ function parseLogText(text){
     }
 
     const existingIdx = employees.findIndex(e=>String(e.badge)===String(badge));
-    const existingNote = existingIdx > -1 ? (employees[existingIdx].note || '') : '';
-    const rec = {badge, id, name, clockIn, breakStart, breakReturn, clockOut, note: existingNote};
+    const rec = {badge, id, name, clockIn, breakStart, breakReturn, clockOut};
     if(existingIdx>-1) employees[existingIdx] = rec; else employees.push(rec);
 
     added++;
